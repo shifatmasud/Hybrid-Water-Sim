@@ -1,4 +1,5 @@
 
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -42,6 +43,9 @@ export interface MetaButtonProps {
 }
 
 // --- Water Simulation Props ---
+export type NoiseType = 'simplex' | 'perlin' | 'voronoi';
+export type NoiseBlendingMode = 'add' | 'multiply' | 'mix';
+
 export interface WaterConfig {
   // Environment
   skyboxUrl: string;
@@ -52,11 +56,32 @@ export interface WaterConfig {
   colorDeep: string;
   transparency: number; // 0-1
   roughness: number; // 0-1
+  
+  // Noise Layer A
   waveHeight: number; // 0-5
   waveSpeed: number; // 0-2
   waveScale: number; // 0-50
   normalFlatness: number; // 0-100
+  noiseType: NoiseType;
   
+  // Noise Layer B & A/B Blending
+  useNoiseLayerB: boolean;
+  noiseBlendingModeAB: NoiseBlendingMode;
+  noiseBlendAB: number; // 0-1
+  noiseTypeB: NoiseType;
+  waveHeightB: number;
+  waveSpeedB: number;
+  waveScaleB: number;
+  
+  // Noise Layer C & B/C Blending
+  useNoiseLayerC: boolean;
+  noiseBlendingModeBC: NoiseBlendingMode;
+  noiseBlendBC: number; // 0-1
+  noiseTypeC: NoiseType;
+  waveHeightC: number;
+  waveSpeedC: number;
+  waveScaleC: number;
+
   // Texture-based Normals
   useTextureNormals: boolean;
   normalMapScale: number;
@@ -94,4 +119,29 @@ export interface WaterConfig {
   causticsIntensity: number; // 0 - 5
   causticsScale: number; // 0.01 - 1.0
   causticsSpeed: number; // 0 - 5
+
+  // Color Ramp
+  useColorRamp: boolean;
+  colorRampNoiseType: NoiseType;
+  colorRampNoiseScale: number;
+  colorRampNoiseSpeed: number;
+  colorRampNoiseMix: number; // 0-1 blend with base colors
+  useColorRampStop3: boolean;
+  useColorRampStop4: boolean;
+  useColorRampStop5: boolean;
+  colorRampStop1Color: string;
+  colorRampStop1Position: number; // 0-1
+  colorRampStop2Color: string;
+  colorRampStop2Position: number; // 0-1
+  colorRampStop3Color: string;
+  colorRampStop3Position: number; // 0-1
+  colorRampStop4Color: string;
+  colorRampStop4Position: number; // 0-1
+  colorRampStop5Color: string;
+  colorRampStop5Position: number; // 0-1
+
+  // Discrete Ripples
+  useTextureImpacts: boolean;
+  useVertexImpacts: boolean;
+  impactStrength: number;
 }

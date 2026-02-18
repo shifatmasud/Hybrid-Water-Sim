@@ -25,6 +25,7 @@ interface Palette {
 export interface SceneController {
   extractPalette: () => Promise<Palette | null>;
   updateWaterConfigFromPalette: (palette: Palette) => void;
+  addDiscreteImpact?: () => void;
 }
 
 const getInitialWindowState = (): Record<WindowId, WindowState> => ({
@@ -62,10 +63,28 @@ const MetaPrototype = () => {
     colorDeep: '#7aa8d6',
     transparency: 0.65,
     roughness: 0.1,
+    // Noise Layer A
     waveHeight: 0.15,
     waveSpeed: 0.108,
     waveScale: 0.7223,
     normalFlatness: 50,
+    noiseType: 'simplex',
+    // Noise Layer B
+    useNoiseLayerB: false,
+    noiseBlendingModeAB: 'mix',
+    noiseBlendAB: 0.5,
+    noiseTypeB: 'perlin',
+    waveHeightB: 0.1,
+    waveSpeedB: 0.05,
+    waveScaleB: 1.5,
+    // Noise Layer C
+    useNoiseLayerC: false,
+    noiseBlendingModeBC: 'add',
+    noiseBlendBC: 0.5,
+    noiseTypeC: 'simplex',
+    waveHeightC: 0.05,
+    waveSpeedC: 0.2,
+    waveScaleC: 2.0,
     // Texture-based Normals
     useTextureNormals: true,
     normalMapScale: 1.0,
@@ -98,6 +117,29 @@ const MetaPrototype = () => {
     causticsIntensity: 1.5,
     causticsScale: 0.15,
     causticsSpeed: 1.5,
+    // Color Ramp Defaults
+    useColorRamp: false,
+    colorRampNoiseType: 'simplex',
+    colorRampNoiseScale: 1.0,
+    colorRampNoiseSpeed: 0.1,
+    colorRampNoiseMix: 1.0,
+    useColorRampStop3: true,
+    useColorRampStop4: false,
+    useColorRampStop5: false,
+    colorRampStop1Color: '#7aa8d6', // Deep
+    colorRampStop1Position: 0.0,
+    colorRampStop2Color: '#41737c', // Shallow
+    colorRampStop2Position: 0.5,
+    colorRampStop3Color: '#ffffff', // Foam
+    colorRampStop3Position: 1.0,
+    colorRampStop4Color: '#000000',
+    colorRampStop4Position: 0.75,
+    colorRampStop5Color: '#000000',
+    colorRampStop5Position: 1.0,
+    // Discrete Ripples
+    useTextureImpacts: true,
+    useVertexImpacts: false,
+    impactStrength: 1.0,
   });
 
   const handleWaterConfigChange = (updates: Partial<WaterConfig>) => {
@@ -173,6 +215,11 @@ const MetaPrototype = () => {
     addLog(`Custom HDR '${file.name}' loaded.`);
   };
 
+  const handleAddDiscreteImpact = useCallback(() => {
+    sceneControllerRef.current.addDiscreteImpact?.();
+    addLog('Triggered discrete ripple impact.');
+  }, []);
+
   // -- Code Panel State --
   const [codeText, setCodeText] = useState(JSON.stringify(waterConfig, null, 2));
   React.useEffect(() => {
@@ -207,6 +254,7 @@ const MetaPrototype = () => {
               onToggleSplitView={handleToggleSplitView}
               skyboxOptions={skyboxOptionsState}
               onHdrUpload={handleHdrUpload}
+              onAddDiscreteImpact={handleAddDiscreteImpact}
             />
           </FloatingWindow>
         )}

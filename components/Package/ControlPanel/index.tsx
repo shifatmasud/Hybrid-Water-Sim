@@ -3,6 +3,7 @@
 
 
 
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -24,6 +25,7 @@ interface ControlPanelProps {
   onToggleSplitView: () => void;
   skyboxOptions: SkyboxOption[];
   onHdrUpload: (file: File) => void;
+  onAddDiscreteImpact: () => void;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = (props) => {
@@ -50,6 +52,7 @@ const ControlPanel: React.FC<ControlPanelProps> = (props) => {
         onToggleSplitView={props.onToggleSplitView}
         skyboxOptions={props.skyboxOptions}
         onHdrUpload={props.onHdrUpload}
+        onAddDiscreteImpact={props.onAddDiscreteImpact}
       />
       
       {/*

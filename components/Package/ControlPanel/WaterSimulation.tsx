@@ -1,4 +1,5 @@
 
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -22,6 +23,7 @@ interface WaterSimulationPanelProps {
   onToggleSplitView: () => void;
   skyboxOptions: SkyboxOption[];
   onHdrUpload: (file: File) => void;
+  onAddDiscreteImpact: () => void;
 }
 
 // Helper for local motion values to use RangeSlider
@@ -52,7 +54,16 @@ const LocalRange: React.FC<{
   );
 };
 
-export const WaterSimulation: React.FC<WaterSimulationPanelProps> = ({ waterConfig, onWaterPropChange, onSyncFromSky, isSplitView, onToggleSplitView, skyboxOptions, onHdrUpload }) => {
+export const WaterSimulation: React.FC<WaterSimulationPanelProps> = ({ 
+    waterConfig, 
+    onWaterPropChange, 
+    onSyncFromSky, 
+    isSplitView, 
+    onToggleSplitView, 
+    skyboxOptions, 
+    onHdrUpload,
+    onAddDiscreteImpact,
+}) => {
   const { theme } = useTheme();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -113,19 +124,111 @@ export const WaterSimulation: React.FC<WaterSimulationPanelProps> = ({ waterConf
             onChange={(e) => onWaterPropChange({ skyboxUrl: e.target.value })}
             options={selectOptions}
          />
-         <ColorPicker
-            label="Deep"
-            value={waterConfig.colorDeep}
-            onChange={(e) => onWaterPropChange({ colorDeep: e.target.value })}
-         />
-         <ColorPicker
-            label="Shallow"
-            value={waterConfig.colorShallow}
-            onChange={(e) => onWaterPropChange({ colorShallow: e.target.value })}
-         />
+         
+        {!waterConfig.useColorRamp && (
+          <>
+            <ColorPicker
+                label="Deep"
+                value={waterConfig.colorDeep}
+                onChange={(e) => onWaterPropChange({ colorDeep: e.target.value })}
+            />
+            <ColorPicker
+                label="Shallow"
+                value={waterConfig.colorShallow}
+                onChange={(e) => onWaterPropChange({ colorShallow: e.target.value })}
+            />
+          </>
+        )}
          
          <div style={{ borderTop: `1px solid ${theme.Color.Base.Surface[3]}`, margin: `${theme.spacing['Space.S']} 0` }} />
-         <label style={{ ...theme.Type.Readable.Label.S, color: theme.Color.Base.Content[3] }}>Waves & Surface</label>
+         <label style={{ ...theme.Type.Readable.Label.S, color: theme.Color.Base.Content[3] }}>Discrete Impacts</label>
+         <Button label="Create Random Impact" onClick={onAddDiscreteImpact} variant="secondary" size="S" icon="ph-waves" />
+         <Toggle 
+          label="Use Texture Impacts" 
+          isOn={waterConfig.useTextureImpacts} 
+          onToggle={() => onWaterPropChange({ useTextureImpacts: !waterConfig.useTextureImpacts })} 
+         />
+         <Toggle 
+          label="Use Vertex Impacts" 
+          isOn={waterConfig.useVertexImpacts} 
+          onToggle={() => onWaterPropChange({ useVertexImpacts: !waterConfig.useVertexImpacts })} 
+         />
+         <LocalRange label="Impact Strength" value={waterConfig.impactStrength * 100} min={10} max={200} onChange={(v) => onWaterPropChange({ impactStrength: v / 100 })} />
+         
+         <div style={{ borderTop: `1px solid ${theme.Color.Base.Surface[3]}`, margin: `${theme.spacing['Space.S']} 0` }} />
+         <label style={{ ...theme.Type.Readable.Label.S, color: theme.Color.Base.Content[3] }}>Color Ramp</label>
+         <Toggle 
+          label="Use Color Ramp" 
+          isOn={waterConfig.useColorRamp} 
+          onToggle={() => onWaterPropChange({ useColorRamp: !waterConfig.useColorRamp })} 
+         />
+         {waterConfig.useColorRamp && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing['Space.M'], marginTop: theme.spacing['Space.S'] }}>
+                <Select
+                    label="Noise Type"
+                    value={waterConfig.colorRampNoiseType}
+                    onChange={(e) => onWaterPropChange({ colorRampNoiseType: e.target.value as any })}
+                    options={[
+                        { value: 'simplex', label: 'Simplex (Default)' },
+                        { value: 'perlin', label: 'Perlin' },
+                        { value: 'voronoi', label: 'Voronoi (Cellular)' },
+                    ]}
+                />
+                <LocalRange label="Noise Scale" value={waterConfig.colorRampNoiseScale * 10} min={1} max={100} onChange={(v) => onWaterPropChange({ colorRampNoiseScale: v / 10 })} />
+                <LocalRange label="Noise Speed" value={waterConfig.colorRampNoiseSpeed * 100} min={0} max={100} onChange={(v) => onWaterPropChange({ colorRampNoiseSpeed: v / 100 })} />
+                <LocalRange label="Blend" value={waterConfig.colorRampNoiseMix * 100} min={0} max={100} onChange={(v) => onWaterPropChange({ colorRampNoiseMix: v / 100 })} />
+                
+                <div style={{ borderTop: `1px solid ${theme.Color.Base.Surface[3]}`, margin: `${theme.spacing['Space.S']} 0` }} />
+                <label style={{ ...theme.Type.Readable.Label.S, color: theme.Color.Base.Content[3] }}>Color Stops</label>
+
+                <div style={{ display: 'flex', gap: theme.spacing['Space.S'], alignItems: 'flex-end' }}>
+                    <ColorPicker label="Stop 1" value={waterConfig.colorRampStop1Color} onChange={(e) => onWaterPropChange({ colorRampStop1Color: e.target.value })} />
+                    <div style={{flex: 1}}><LocalRange label="" value={waterConfig.colorRampStop1Position * 100} min={0} max={100} onChange={(v) => onWaterPropChange({ colorRampStop1Position: v / 100 })} /></div>
+                </div>
+                <div style={{ display: 'flex', gap: theme.spacing['Space.S'], alignItems: 'flex-end' }}>
+                    <ColorPicker label="Stop 2" value={waterConfig.colorRampStop2Color} onChange={(e) => onWaterPropChange({ colorRampStop2Color: e.target.value })} />
+                    <div style={{flex: 1}}><LocalRange label="" value={waterConfig.colorRampStop2Position * 100} min={0} max={100} onChange={(v) => onWaterPropChange({ colorRampStop2Position: v / 100 })} /></div>
+                </div>
+                
+                <Toggle label="Use Stop 3" isOn={waterConfig.useColorRampStop3} onToggle={() => onWaterPropChange({ useColorRampStop3: !waterConfig.useColorRampStop3 })} />
+                {waterConfig.useColorRampStop3 && (
+                    <div style={{ display: 'flex', gap: theme.spacing['Space.S'], alignItems: 'flex-end' }}>
+                        <ColorPicker label="Stop 3" value={waterConfig.colorRampStop3Color} onChange={(e) => onWaterPropChange({ colorRampStop3Color: e.target.value })} />
+                        <div style={{flex: 1}}><LocalRange label="" value={waterConfig.colorRampStop3Position * 100} min={0} max={100} onChange={(v) => onWaterPropChange({ colorRampStop3Position: v / 100 })} /></div>
+                    </div>
+                )}
+                
+                <Toggle label="Use Stop 4" isOn={waterConfig.useColorRampStop4} onToggle={() => onWaterPropChange({ useColorRampStop4: !waterConfig.useColorRampStop4 })} />
+                {waterConfig.useColorRampStop4 && (
+                    <div style={{ display: 'flex', gap: theme.spacing['Space.S'], alignItems: 'flex-end' }}>
+                        <ColorPicker label="Stop 4" value={waterConfig.colorRampStop4Color} onChange={(e) => onWaterPropChange({ colorRampStop4Color: e.target.value })} />
+                        <div style={{flex: 1}}><LocalRange label="" value={waterConfig.colorRampStop4Position * 100} min={0} max={100} onChange={(v) => onWaterPropChange({ colorRampStop4Position: v / 100 })} /></div>
+                    </div>
+                )}
+
+                <Toggle label="Use Stop 5" isOn={waterConfig.useColorRampStop5} onToggle={() => onWaterPropChange({ useColorRampStop5: !waterConfig.useColorRampStop5 })} />
+                {waterConfig.useColorRampStop5 && (
+                    <div style={{ display: 'flex', gap: theme.spacing['Space.S'], alignItems: 'flex-end' }}>
+                        <ColorPicker label="Stop 5" value={waterConfig.colorRampStop5Color} onChange={(e) => onWaterPropChange({ colorRampStop5Color: e.target.value })} />
+                        <div style={{flex: 1}}><LocalRange label="" value={waterConfig.colorRampStop5Position * 100} min={0} max={100} onChange={(v) => onWaterPropChange({ colorRampStop5Position: v / 100 })} /></div>
+                    </div>
+                )}
+            </div>
+         )}
+         
+         <div style={{ borderTop: `1px solid ${theme.Color.Base.Surface[3]}`, margin: `${theme.spacing['Space.S']} 0` }} />
+         <label style={{ ...theme.Type.Readable.Label.S, color: theme.Color.Base.Content[3] }}>Noise Layer A</label>
+         
+         <Select
+            label="Wave Noise"
+            value={waterConfig.noiseType}
+            onChange={(e) => onWaterPropChange({ noiseType: e.target.value as any })}
+            options={[
+                { value: 'simplex', label: 'Simplex (Default)' },
+                { value: 'perlin', label: 'Perlin' },
+                { value: 'voronoi', label: 'Voronoi (Cellular)' },
+            ]}
+         />
 
          <LocalRange label="Wave Height" value={waterConfig.waveHeight * 10} min={0} max={50} onChange={(v) => onWaterPropChange({ waveHeight: v / 10 })} />
          <LocalRange label="Wave Speed" value={waterConfig.waveSpeed * 100} min={0} max={100} onChange={(v) => onWaterPropChange({ waveSpeed: v / 100 })} />
@@ -133,6 +236,87 @@ export const WaterSimulation: React.FC<WaterSimulationPanelProps> = ({ waterConf
          <LocalRange label="Roughness" value={waterConfig.roughness * 100} min={0} max={100} onChange={(v) => onWaterPropChange({ roughness: v / 100 })} />
          <LocalRange label="Normal Flatness" value={waterConfig.normalFlatness} min={1} max={100} onChange={(v) => onWaterPropChange({ normalFlatness: v })} />
          
+         <div style={{ borderTop: `1px solid ${theme.Color.Base.Surface[3]}`, margin: `${theme.spacing['Space.S']} 0` }} />
+         <label style={{ ...theme.Type.Readable.Label.S, color: theme.Color.Base.Content[3] }}>Noise Layer B &amp; Blending A/B</label>
+         <Toggle 
+          label="Enable Layer B" 
+          isOn={waterConfig.useNoiseLayerB} 
+          onToggle={() => onWaterPropChange({ useNoiseLayerB: !waterConfig.useNoiseLayerB })} 
+         />
+         {waterConfig.useNoiseLayerB && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing['Space.M'], marginTop: theme.spacing['Space.S'] }}>
+                <Select
+                    label="Blend Mode (A/B)"
+                    value={waterConfig.noiseBlendingModeAB}
+                    onChange={(e) => onWaterPropChange({ noiseBlendingModeAB: e.target.value as any })}
+                    options={[
+                        { value: 'mix', label: 'Mix' },
+                        { value: 'add', label: 'Add' },
+                        { value: 'multiply', label: 'Multiply' },
+                    ]}
+                />
+                {waterConfig.noiseBlendingModeAB === 'mix' && (
+                    <LocalRange label="Blend (A/B)" value={waterConfig.noiseBlendAB * 100} min={0} max={100} onChange={(v) => onWaterPropChange({ noiseBlendAB: v / 100 })} />
+                )}
+                <Select
+                    label="Noise Type B"
+                    value={waterConfig.noiseTypeB}
+                    onChange={(e) => onWaterPropChange({ noiseTypeB: e.target.value as any })}
+                    options={[
+                        { value: 'simplex', label: 'Simplex' },
+                        { value: 'perlin', label: 'Perlin (Default)' },
+                        { value: 'voronoi', label: 'Voronoi (Cellular)' },
+                    ]}
+                />
+                <LocalRange label="Wave Height B" value={waterConfig.waveHeightB * 10} min={0} max={50} onChange={(v) => onWaterPropChange({ waveHeightB: v / 10 })} />
+                <LocalRange label="Wave Speed B" value={waterConfig.waveSpeedB * 100} min={0} max={100} onChange={(v) => onWaterPropChange({ waveSpeedB: v / 100 })} />
+                <LocalRange label="Scale B" value={waterConfig.waveScaleB * 10} min={1} max={100} onChange={(v) => onWaterPropChange({ waveScaleB: v / 10 })} />
+            </div>
+         )}
+         
+         {waterConfig.useNoiseLayerB && (
+         <>
+         <div style={{ borderTop: `1px solid ${theme.Color.Base.Surface[3]}`, margin: `${theme.spacing['Space.S']} 0` }} />
+         <label style={{ ...theme.Type.Readable.Label.S, color: theme.Color.Base.Content[3] }}>Noise Layer C &amp; Blending B/C</label>
+         <Toggle 
+          label="Enable Layer C" 
+          isOn={waterConfig.useNoiseLayerC} 
+          onToggle={() => onWaterPropChange({ useNoiseLayerC: !waterConfig.useNoiseLayerC })} 
+         />
+         {waterConfig.useNoiseLayerC && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing['Space.M'], marginTop: theme.spacing['Space.S'] }}>
+                <Select
+                    label="Blend Mode (B/C)"
+                    value={waterConfig.noiseBlendingModeBC}
+                    onChange={(e) => onWaterPropChange({ noiseBlendingModeBC: e.target.value as any })}
+                    options={[
+                        { value: 'add', label: 'Add' },
+                        { value: 'multiply', label: 'Multiply' },
+                        { value: 'mix', label: 'Mix' },
+                    ]}
+                />
+                {waterConfig.noiseBlendingModeBC === 'mix' && (
+                    <LocalRange label="Blend (B/C)" value={waterConfig.noiseBlendBC * 100} min={0} max={100} onChange={(v) => onWaterPropChange({ noiseBlendBC: v / 100 })} />
+                )}
+                <Select
+                    label="Noise Type C"
+                    value={waterConfig.noiseTypeC}
+                    onChange={(e) => onWaterPropChange({ noiseTypeC: e.target.value as any })}
+                    options={[
+                        { value: 'simplex', label: 'Simplex (Default)' },
+                        { value: 'perlin', label: 'Perlin' },
+                        { value: 'voronoi', label: 'Voronoi (Cellular)' },
+                    ]}
+                />
+                <LocalRange label="Wave Height C" value={waterConfig.waveHeightC * 10} min={0} max={50} onChange={(v) => onWaterPropChange({ waveHeightC: v / 10 })} />
+                <LocalRange label="Wave Speed C" value={waterConfig.waveSpeedC * 100} min={0} max={100} onChange={(v) => onWaterPropChange({ waveSpeedC: v / 100 })} />
+                <LocalRange label="Scale C" value={waterConfig.waveScaleC * 10} min={1} max={100} onChange={(v) => onWaterPropChange({ waveScaleC: v / 10 })} />
+            </div>
+         )}
+         </>
+         )}
+
+
          <div style={{ borderTop: `1px solid ${theme.Color.Base.Surface[3]}`, margin: `${theme.spacing['Space.S']} 0` }} />
          <label style={{ ...theme.Type.Readable.Label.S, color: theme.Color.Base.Content[3] }}>Displacement</label>
          <Toggle 

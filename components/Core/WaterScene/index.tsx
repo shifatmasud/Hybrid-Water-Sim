@@ -19,6 +19,14 @@ import { waterVertexShader, waterFragmentShader } from './shaders/water.ts';
 import { terrainVertexShader, terrainFragmentShader } from './shaders/terrain.ts';
 import { SceneController } from '../../App/MetaPrototype.tsx';
 
+interface Impact {
+    x: number;
+    z: number;
+    strength: number;
+    startTime: number;
+}
+
+const MAX_IMPACTS = 10;
 
 interface WaterSceneProps {
   config: WaterConfig;
@@ -97,6 +105,7 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
   const hdrLoaderRef = useRef<HDRLoader | null>(null);
   const pmremGeneratorRef = useRef<THREE.PMREMGenerator | null>(null);
   const lastCameraState = useRef<{position: THREE.Vector3, target: THREE.Vector3} | null>(null);
+  const clockRef = useRef<THREE.Clock | null>(null);
 
   const configRef = useRef(config);
   useEffect(() => {
@@ -120,12 +129,17 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
   const raycaster = useRef(new THREE.Raycaster());
   const mouse = useRef(new THREE.Vector2());
   const interactionPlane = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
+  const discreteImpactsRef = useRef<Impact[]>([]);
+  const textureImpactsToProcessRef = useRef<Impact[]>([]);
+
 
   // God Rays & Bubbles Refs
   const raysGroupRef = useRef<THREE.Group | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
+    
+    clockRef.current = new THREE.Clock();
 
     // 1. Generate Sand Texture
     sandTextureRef.current = createSandTexture();
@@ -167,6 +181,23 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
     controls.maxDistance = 1000;
     controls.minDistance = 1;
     if (initialCameraState) controls.target.set(...initialCameraState.target);
+
+    // --- Scene Controller Setup ---
+    if (sceneController) {
+        sceneController.current.addDiscreteImpact = () => {
+            if (!clockRef.current) return;
+            const x = (Math.random() - 0.5) * 150;
+            const z = (Math.random() - 0.5) * 150;
+            const newImpact: Impact = {
+                x,
+                z,
+                strength: configRef.current.impactStrength,
+                startTime: clockRef.current.getElapsedTime(),
+            };
+            discreteImpactsRef.current.push(newImpact);
+            textureImpactsToProcessRef.current.push(newImpact);
+        };
+    }
 
     // --- POST-PROCESSING SETUP ---
     const target = new THREE.WebGLRenderTarget(width, height, {
@@ -249,7 +280,9 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
             uStrength: { value: configRef.current.rippleStrength },
             uRadius: { value: configRef.current.rippleRadius },
             uDamping: { value: configRef.current.rippleDamping },
-            uMouseDown: { value: false }
+            uMouseDown: { value: false },
+            uImpacts: { value: Array(MAX_IMPACTS).fill(new THREE.Vector3()) },
+            uImpactCount: { value: 0 },
         }
     });
     simMaterialRef.current = simMaterial;
@@ -297,6 +330,28 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
         texture.wrapS = THREE.RepeatWrapping;
         texture.wrapT = THREE.RepeatWrapping;
     });
+    
+    // --- FIX: Initialize ramp uniforms with values from the initial config ---
+    const initialConfig = configRef.current;
+    const initialRampColors = [
+        new THREE.Color(initialConfig.colorRampStop1Color),
+        new THREE.Color(initialConfig.colorRampStop2Color),
+        new THREE.Color(initialConfig.colorRampStop3Color),
+        new THREE.Color(initialConfig.colorRampStop4Color),
+        new THREE.Color(initialConfig.colorRampStop5Color),
+    ];
+    const initialRampPositions = [
+        initialConfig.colorRampStop1Position,
+        initialConfig.colorRampStop2Position,
+        initialConfig.colorRampStop3Position,
+        initialConfig.colorRampStop4Position,
+        initialConfig.colorRampStop5Position,
+    ];
+    let initialStopCount = 2;
+    if (initialConfig.useColorRampStop3) initialStopCount++;
+    if (initialConfig.useColorRampStop4) initialStopCount++;
+    if (initialConfig.useColorRampStop5) initialStopCount++;
+    // --- END FIX ---
 
     const waterMat = new THREE.ShaderMaterial({
         vertexShader: waterVertexShader,
@@ -309,10 +364,29 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
             uTransparency: { value: configRef.current.transparency },
             uRoughness: { value: configRef.current.roughness },
             uSunIntensity: { value: configRef.current.sunIntensity },
+            // Layer A
             uWaveHeight: { value: configRef.current.waveHeight },
             uWaveSpeed: { value: configRef.current.waveSpeed },
             uWaveScale: { value: configRef.current.waveScale },
             uNormalFlatness: { value: configRef.current.normalFlatness },
+            uNoiseType: { value: 0 },
+            // Layer B & Blending A/B
+            uUseNoiseLayerB: { value: configRef.current.useNoiseLayerB },
+            uNoiseBlendingModeAB: { value: 0 },
+            uNoiseBlendAB: { value: configRef.current.noiseBlendAB },
+            uNoiseTypeB: { value: 1 },
+            uWaveHeightB: { value: configRef.current.waveHeightB },
+            uWaveSpeedB: { value: configRef.current.waveSpeedB },
+            uWaveScaleB: { value: configRef.current.waveScaleB },
+            // Layer C & Blending B/C
+            uUseNoiseLayerC: { value: configRef.current.useNoiseLayerC },
+            uNoiseBlendingModeBC: { value: 0 },
+            uNoiseBlendBC: { value: configRef.current.noiseBlendBC },
+            uNoiseTypeC: { value: 0 },
+            uWaveHeightC: { value: configRef.current.waveHeightC },
+            uWaveSpeedC: { value: configRef.current.waveSpeedC },
+            uWaveScaleC: { value: configRef.current.waveScaleC },
+            // ---
             uIOR: { value: configRef.current.ior },
             tRipple: { value: null },
             uRippleIntensity: { value: configRef.current.rippleIntensity },
@@ -337,6 +411,19 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
             uUseDisplacement: { value: configRef.current.useDisplacement },
             uDisplacementStrength: { value: configRef.current.displacementStrength },
             uDisplacementSpeed: { value: configRef.current.displacementSpeed },
+            // Color Ramp Uniforms
+            uUseColorRamp: { value: initialConfig.useColorRamp },
+            uColorRamp: { value: initialRampColors },
+            uColorRampPositions: { value: initialRampPositions },
+            uColorRampStopCount: { value: initialStopCount },
+            uColorRampNoiseType: { value: 0 },
+            uColorRampNoiseScale: { value: initialConfig.colorRampNoiseScale },
+            uColorRampNoiseSpeed: { value: initialConfig.colorRampNoiseSpeed },
+            uColorRampNoiseMix: { value: initialConfig.colorRampNoiseMix },
+            // Vertex Impacts
+            uUseVertexImpacts: { value: configRef.current.useVertexImpacts },
+            uVertexImpacts: { value: Array(MAX_IMPACTS).fill(new THREE.Vector4()) },
+            uVertexImpactCount: { value: 0 },
         },
         transparent: true,
         side: THREE.DoubleSide,
@@ -344,36 +431,49 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
     materialsRef.current.push(waterMat);
     const water = new THREE.Mesh(waterGeo, waterMat);
     scene.add(water);
-
-    const clock = new THREE.Clock();
     
     const animate = () => {
-        const time = clock.getElapsedTime();
+        if (!clockRef.current) return;
+        const time = clockRef.current.getElapsedTime();
         const currentConfig = configRef.current;
         const renderer = rendererRef.current;
         const scene = sceneRef.current;
         const camera = cameraRef.current;
         const composer = composerRef.current;
+        const simMat = simMaterialRef.current;
 
-        if (!renderer || !scene || !camera || !composer) {
+        if (!renderer || !scene || !camera || !composer || !simMat) {
             frameIdRef.current = requestAnimationFrame(animate);
             return;
         }
 
+        // --- IMPACT MANAGEMENT ---
+        discreteImpactsRef.current = discreteImpactsRef.current.filter(i => time - i.startTime < 5.0);
+
         // --- RIPPLE STEP (Ping-Pong) ---
-        if (simMaterialRef.current && simSceneRef.current && simCameraRef.current && renderTargetA.current && renderTargetB.current) {
+        if (simSceneRef.current && simCameraRef.current && renderTargetA.current && renderTargetB.current) {
             
-            // Auto Rain: If user is not interacting, randomly drop water
-            if (!isInteracting.current && Math.random() > 0.95) {
-               simMaterialRef.current.uniforms.uMouse.value.set(
-                   Math.random(),
-                   Math.random()
-               );
-               simMaterialRef.current.uniforms.uMouseDown.value = true;
+            // Texture Impacts
+            if (currentConfig.useTextureImpacts && textureImpactsToProcessRef.current.length > 0) {
+                const impacts = textureImpactsToProcessRef.current.slice(0, MAX_IMPACTS);
+                const impactData = impacts.map(i => new THREE.Vector3(
+                    (i.x + 2000) / 4000,
+                    (-i.z + 2000) / 4000,
+                    i.strength
+                ));
+                // --- FIX: Pad the array to match the shader's expected size ---
+                while (impactData.length < MAX_IMPACTS) {
+                    impactData.push(new THREE.Vector3());
+                }
+                simMat.uniforms.uImpactCount.value = impacts.length;
+                simMat.uniforms.uImpacts.value = impactData;
+                textureImpactsToProcessRef.current = [];
+            } else {
+                simMat.uniforms.uImpactCount.value = 0;
             }
 
             // Use Buffer A (Current/Previous State) to Compute Buffer B (Next State)
-            simMaterialRef.current.uniforms.tDiffuse.value = renderTargetA.current.texture;
+            simMat.uniforms.tDiffuse.value = renderTargetA.current.texture;
             
             renderer.setRenderTarget(renderTargetB.current);
             renderer.render(simSceneRef.current, simCameraRef.current);
@@ -385,7 +485,7 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
             renderTargetB.current = temp;
 
             // Reset interaction flag after frame
-            simMaterialRef.current.uniforms.uMouseDown.value = false;
+            simMat.uniforms.uMouseDown.value = false;
             
             // Pass the updated state (now in A) to the water material
             waterMat.uniforms.tRipple.value = renderTargetA.current.texture;
@@ -394,6 +494,20 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
         materialsRef.current.forEach(mat => {
             if(mat instanceof THREE.ShaderMaterial && mat.uniforms.uTime) mat.uniforms.uTime.value = time;
         });
+        
+        // --- Vertex Impacts ---
+        waterMat.uniforms.uUseVertexImpacts.value = currentConfig.useVertexImpacts;
+        if (currentConfig.useVertexImpacts) {
+            const impacts = discreteImpactsRef.current.slice(0, MAX_IMPACTS);
+            const impactData = impacts.map(i => new THREE.Vector4(i.x, i.z, i.strength, i.startTime));
+            while (impactData.length < MAX_IMPACTS) {
+                impactData.push(new THREE.Vector4());
+            }
+            waterMat.uniforms.uVertexImpactCount.value = impacts.length;
+            waterMat.uniforms.uVertexImpacts.value = impactData;
+        } else {
+            waterMat.uniforms.uVertexImpactCount.value = 0;
+        }
         
         // Update Camera Position for Seabed Fog
         if (bedMat.uniforms.uCameraPos) {
@@ -474,7 +588,7 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
         const target = new THREE.Vector3();
         const intersection = raycaster.current.ray.intersectPlane(interactionPlane.current, target);
         
-        if (intersection) {
+        if (intersection && simMaterialRef.current) {
             // Plane is 4000x4000 centered at 0. UVs map 0..1
             // Plane is rotated -90 X, so World Z maps to V
             // World X: -2000..2000 -> U: 0..1
@@ -482,10 +596,8 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
             const u = (target.x + 2000) / 4000;
             const vCorrected = ( -target.z + 2000 ) / 4000;
 
-            if (simMaterialRef.current) {
-                simMaterialRef.current.uniforms.uMouse.value.set(u, vCorrected);
-                simMaterialRef.current.uniforms.uMouseDown.value = true;
-            }
+            simMaterialRef.current.uniforms.uMouse.value.set(u, vCorrected);
+            simMaterialRef.current.uniforms.uMouseDown.value = true;
             return true;
         }
         return false;
@@ -602,6 +714,28 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
     const shallow = new THREE.Color(config.colorShallow);
     const fogColor = new THREE.Color(config.underwaterFogColor);
     const foamColor = new THREE.Color(config.foamColor);
+    
+    // Color Ramp Data
+    const rampColors = [
+        new THREE.Color(config.colorRampStop1Color),
+        new THREE.Color(config.colorRampStop2Color),
+        new THREE.Color(config.colorRampStop3Color),
+        new THREE.Color(config.colorRampStop4Color),
+        new THREE.Color(config.colorRampStop5Color),
+    ];
+    
+    const rampPositions = [
+        config.colorRampStop1Position,
+        config.colorRampStop2Position,
+        config.colorRampStop3Position,
+        config.colorRampStop4Position,
+        config.colorRampStop5Position,
+    ];
+    
+    let stopCount = 2;
+    if (config.useColorRampStop3) stopCount++;
+    if (config.useColorRampStop4) stopCount++;
+    if (config.useColorRampStop5) stopCount++;
 
     // Update Main Shaders
     for (const mat of materialsRef.current) {
@@ -610,9 +744,6 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
             if(mat.uniforms.uColorShallow) mat.uniforms.uColorShallow.value.copy(shallow);
             if(mat.uniforms.uTransparency) mat.uniforms.uTransparency.value = config.transparency;
             if(mat.uniforms.uRoughness) mat.uniforms.uRoughness.value = config.roughness;
-            if(mat.uniforms.uWaveHeight) mat.uniforms.uWaveHeight.value = config.waveHeight;
-            if(mat.uniforms.uWaveSpeed) mat.uniforms.uWaveSpeed.value = config.waveSpeed;
-            if(mat.uniforms.uWaveScale) mat.uniforms.uWaveScale.value = config.waveScale;
             if(mat.uniforms.uLightIntensity) mat.uniforms.uLightIntensity.value = config.underwaterLightIntensity;
             if(mat.uniforms.uSunIntensity) mat.uniforms.uSunIntensity.value = config.sunIntensity;
             if(mat.uniforms.uRippleIntensity) mat.uniforms.uRippleIntensity.value = config.rippleIntensity;
@@ -620,6 +751,57 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
             if(mat.uniforms.uNormalFlatness) mat.uniforms.uNormalFlatness.value = config.normalFlatness;
             if(mat.uniforms.uIOR) mat.uniforms.uIOR.value = config.ior;
             if(mat.uniforms.uColor) mat.uniforms.uColor.value.copy(shallow);
+            
+            // Layer A
+            if(mat.uniforms.uWaveHeight) mat.uniforms.uWaveHeight.value = config.waveHeight;
+            if(mat.uniforms.uWaveSpeed) mat.uniforms.uWaveSpeed.value = config.waveSpeed;
+            if(mat.uniforms.uWaveScale) mat.uniforms.uWaveScale.value = config.waveScale;
+            if (mat.uniforms.uNoiseType) {
+                let noiseTypeInt = 0; // simplex
+                if (config.noiseType === 'perlin') noiseTypeInt = 1;
+                else if (config.noiseType === 'voronoi') noiseTypeInt = 2;
+                mat.uniforms.uNoiseType.value = noiseTypeInt;
+            }
+            
+            // Layer B & Blending A/B
+            if(mat.uniforms.uUseNoiseLayerB) mat.uniforms.uUseNoiseLayerB.value = config.useNoiseLayerB;
+            if(mat.uniforms.uNoiseBlendAB) mat.uniforms.uNoiseBlendAB.value = config.noiseBlendAB;
+            if(mat.uniforms.uWaveHeightB) mat.uniforms.uWaveHeightB.value = config.waveHeightB;
+            if(mat.uniforms.uWaveSpeedB) mat.uniforms.uWaveSpeedB.value = config.waveSpeedB;
+            if(mat.uniforms.uWaveScaleB) mat.uniforms.uWaveScaleB.value = config.waveScaleB;
+            if (mat.uniforms.uNoiseTypeB) {
+                let noiseTypeInt = 0; // simplex
+                if (config.noiseTypeB === 'perlin') noiseTypeInt = 1;
+                else if (config.noiseTypeB === 'voronoi') noiseTypeInt = 2;
+                mat.uniforms.uNoiseTypeB.value = noiseTypeInt;
+            }
+            if (mat.uniforms.uNoiseBlendingModeAB) {
+                let blendModeInt = 2; // mix
+                if (config.noiseBlendingModeAB === 'add') blendModeInt = 0;
+                else if (config.noiseBlendingModeAB === 'multiply') blendModeInt = 1;
+                mat.uniforms.uNoiseBlendingModeAB.value = blendModeInt;
+            }
+            
+            // Layer C & Blending B/C
+            if(mat.uniforms.uUseNoiseLayerC) mat.uniforms.uUseNoiseLayerC.value = config.useNoiseLayerC;
+            if(mat.uniforms.uNoiseBlendBC) mat.uniforms.uNoiseBlendBC.value = config.noiseBlendBC;
+            if(mat.uniforms.uWaveHeightC) mat.uniforms.uWaveHeightC.value = config.waveHeightC;
+            if(mat.uniforms.uWaveSpeedC) mat.uniforms.uWaveSpeedC.value = config.waveSpeedC;
+            if(mat.uniforms.uWaveScaleC) mat.uniforms.uWaveScaleC.value = config.waveScaleC;
+            if (mat.uniforms.uNoiseTypeC) {
+                let noiseTypeInt = 0; // simplex
+                if (config.noiseTypeC === 'perlin') noiseTypeInt = 1;
+                else if (config.noiseTypeC === 'voronoi') noiseTypeInt = 2;
+                mat.uniforms.uNoiseTypeC.value = noiseTypeInt;
+            }
+            if (mat.uniforms.uNoiseBlendingModeBC) {
+                let blendModeInt = 0; // add
+                if (config.noiseBlendingModeBC === 'multiply') blendModeInt = 1;
+                else if (config.noiseBlendingModeBC === 'mix') blendModeInt = 2;
+                mat.uniforms.uNoiseBlendingModeBC.value = blendModeInt;
+            }
+
+            // Textures
             if(mat.uniforms.uUseTextureNormals) mat.uniforms.uUseTextureNormals.value = config.useTextureNormals;
             if(mat.uniforms.uNormalMapScale) mat.uniforms.uNormalMapScale.value = config.normalMapScale;
             if(mat.uniforms.uNormalMapSpeed) mat.uniforms.uNormalMapSpeed.value = config.normalMapSpeed;
@@ -642,6 +824,21 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
             if(mat.uniforms.uFogNear) mat.uniforms.uFogNear.value = config.fogCutoffStart;
             if(mat.uniforms.uFogFar) mat.uniforms.uFogFar.value = config.fogCutoffEnd;
             if(mat.uniforms.uFogColor) mat.uniforms.uFogColor.value.copy(fogColor);
+
+            // Color Ramp Uniforms
+            if(mat.uniforms.uUseColorRamp) mat.uniforms.uUseColorRamp.value = config.useColorRamp;
+            if(mat.uniforms.uColorRamp) mat.uniforms.uColorRamp.value = rampColors;
+            if(mat.uniforms.uColorRampPositions) mat.uniforms.uColorRampPositions.value = rampPositions;
+            if(mat.uniforms.uColorRampStopCount) mat.uniforms.uColorRampStopCount.value = stopCount;
+            if(mat.uniforms.uColorRampNoiseMix) mat.uniforms.uColorRampNoiseMix.value = config.colorRampNoiseMix;
+            if(mat.uniforms.uColorRampNoiseScale) mat.uniforms.uColorRampNoiseScale.value = config.colorRampNoiseScale;
+            if(mat.uniforms.uColorRampNoiseSpeed) mat.uniforms.uColorRampNoiseSpeed.value = config.colorRampNoiseSpeed;
+            if (mat.uniforms.uColorRampNoiseType) {
+                let noiseTypeInt = 0; // simplex
+                if (config.colorRampNoiseType === 'perlin') noiseTypeInt = 1;
+                else if (config.colorRampNoiseType === 'voronoi') noiseTypeInt = 2;
+                mat.uniforms.uColorRampNoiseType.value = noiseTypeInt;
+            }
         }
     }
 

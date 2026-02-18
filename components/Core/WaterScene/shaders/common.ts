@@ -12,6 +12,7 @@ vec3 permute(vec3 x) { return mod289(((x*34.0)+1.0)*x); }
 vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
 vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
 
+// --- Simplex Noise (snoise) ---
 float snoise(vec3 v) {
   const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
   const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
@@ -97,7 +98,7 @@ float snoise(vec2 v) {
   return 130.0 * dot(m, g);
 }
 
-float fbm(vec2 st, int octaves, float persistence, float lacunarity) {
+float simplex_fbm(vec2 st, int octaves, float persistence, float lacunarity) {
     float value = 0.0;
     float amplitude = 0.5;
     float frequency = 1.0;
@@ -110,5 +111,69 @@ float fbm(vec2 st, int octaves, float persistence, float lacunarity) {
     return value;
 }
 
+// --- Classic Perlin Noise (pnoise) ---
+vec2 fade(vec2 t) { return t*t*t*(t*(t*6.0-15.0)+10.0); }
+
+float pnoise(vec2 P) {
+    vec4 Pi = floor(P.xyxy) + vec4(0.0, 0.0, 1.0, 1.0);
+    vec4 Pf = fract(P.xyxy) - vec4(0.0, 0.0, 1.0, 1.0);
+    Pi = mod(Pi, 289.0);
+    vec4 ix = Pi.xzxz;
+    vec4 iy = Pi.yyww;
+    vec4 fx = Pf.xzxz;
+    vec4 fy = Pf.yyww;
+    vec4 i = permute(permute(ix) + iy);
+    vec4 gx = fract(i * (1.0 / 41.0)) * 2.0 - 1.0;
+    vec4 gy = abs(gx) - 0.5;
+    vec4 tx = floor(gx + 0.5);
+    gx = gx - tx;
+    vec2 g00 = vec2(gx.x, gy.x);
+    vec2 g10 = vec2(gx.y, gy.y);
+    vec2 g01 = vec2(gx.z, gy.z);
+    vec2 g11 = vec2(gx.w, gy.w);
+    vec4 norm = taylorInvSqrt(vec4(dot(g00, g00), dot(g10, g10), dot(g01, g01), dot(g11, g11)));
+    g00 *= norm.x;
+    g10 *= norm.y;
+    g01 *= norm.z;
+    g11 *= norm.w;
+    float n00 = dot(g00, vec2(fx.x, fy.x));
+    float n10 = dot(g10, vec2(fx.y, fy.y));
+    float n01 = dot(g01, vec2(fx.z, fy.z));
+    float n11 = dot(g11, vec2(fx.w, fy.w));
+    vec2 fade_xy = fade(Pf.xy);
+    vec2 n_x = mix(vec2(n00, n01), vec2(n10, n11), fade_xy.x);
+    float n_xy = mix(n_x.x, n_x.y, fade_xy.y);
+    return 2.3 * n_xy;
+}
+
+float perlin_fbm(vec2 st, int octaves, float persistence, float lacunarity) {
+    float value = 0.0;
+    float amplitude = 0.5;
+    float frequency = 1.0;
+    for (int i = 0; i < octaves; i++) {
+        value += amplitude * pnoise(st * frequency);
+        frequency *= lacunarity;
+        amplitude *= persistence;
+    }
+    return value;
+}
+
+// --- Voronoi Noise ---
 vec2 hash2( vec2 p ) { return fract(sin(vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3))))*43758.5453); }
+
+float voronoi( in vec2 x, float t ) {
+    vec2 n = floor(x);
+    vec2 f = fract(x);
+    float m = 1.0;
+    for( int j=-1; j<=1; j++ )
+    for( int i=-1; i<=1; i++ ) {
+        vec2 g = vec2( float(i), float(j) );
+        vec2 o = hash2( n + g );
+        o = 0.5 + 0.5*sin( t + 6.2831*o ); 
+        vec2 r = g + o - f;
+        float d = dot(r,r);
+        if( d<m ) m=d;
+    }
+    return m;
+}
 `;

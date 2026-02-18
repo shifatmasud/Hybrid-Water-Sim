@@ -24,7 +24,7 @@ void main() {
     // Rolling dunes: Less jagged, more flowy
     // We combine sine waves with noise
     float dune = sin(p.x * 2.0 + p.y * 0.5) * 5.0; 
-    float detail = fbm(p * 2.0, 3, 0.5, 2.0) * 15.0;
+    float detail = simplex_fbm(p * 2.0, 3, 0.5, 2.0) * 15.0;
     
     float elevation = dune + detail;
     
@@ -68,22 +68,6 @@ varying float vElevation;
 ${commonShaderUtils}
 
 // Voronoi Caustics
-float voronoi( in vec2 x, float t ) {
-    vec2 n = floor(x);
-    vec2 f = fract(x);
-    float m = 1.0;
-    for( int j=-1; j<=1; j++ )
-    for( int i=-1; i<=1; i++ ) {
-        vec2 g = vec2( float(i), float(j) );
-        vec2 o = hash2( n + g );
-        o = 0.5 + 0.5*sin( t + 6.2831*o ); 
-        vec2 r = g + o - f;
-        float d = dot(r,r);
-        if( d<m ) m=d;
-    }
-    return m;
-}
-
 vec3 getCausticRGB(vec2 uv) {
     vec3 col = vec3(0.0);
     float t = uTime;

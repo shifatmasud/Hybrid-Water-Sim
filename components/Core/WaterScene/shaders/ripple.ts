@@ -13,6 +13,8 @@ void main() {
 `;
 
 export const rippleFragmentShader = `
+#define MAX_IMPACTS 10
+
 uniform sampler2D tDiffuse;
 uniform vec2 uResolution;
 uniform vec2 uMouse;
@@ -20,6 +22,8 @@ uniform float uStrength;
 uniform float uRadius;
 uniform float uDamping;
 uniform bool uMouseDown;
+uniform vec3 uImpacts[MAX_IMPACTS];
+uniform int uImpactCount;
 varying vec2 vUv;
 
 void main() {
@@ -52,6 +56,21 @@ void main() {
             height -= amount; // Push water down
         }
     }
+    
+    // Discrete Impacts
+    float impactForce = 0.0;
+    if (uImpactCount > 0) {
+        for (int i = 0; i < MAX_IMPACTS; i++) {
+            if (i >= uImpactCount) break;
+            vec3 impact = uImpacts[i]; // .xy = uv, .z = strength
+            float dist = distance(vUv, impact.xy);
+            if (dist < uRadius) {
+                float amount = impact.z * (1.0 - smoothstep(0.0, uRadius, dist));
+                impactForce -= amount;
+            }
+        }
+    }
+    height += impactForce;
     
     gl_FragColor = vec4(height, vel, 0.0, 1.0);
 }
