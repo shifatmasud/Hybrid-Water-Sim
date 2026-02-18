@@ -178,8 +178,8 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
     const controls = new OrbitControls(camera, renderer.domElement);
     controlsRef.current = controls;
     controls.enableDamping = true;
-    controls.maxDistance = 1000;
-    controls.minDistance = 1;
+    controls.maxDistance = Infinity;
+    controls.minDistance = 0;
     if (initialCameraState) controls.target.set(...initialCameraState.target);
 
     // --- Scene Controller Setup ---
