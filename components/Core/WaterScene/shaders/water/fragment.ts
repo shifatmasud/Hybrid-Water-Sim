@@ -1,3 +1,5 @@
+
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -91,9 +93,14 @@ void main() {
     vec3 normal = vNormal;
 
     if (uUseTextureNormals && uNormalMapStrength > 0.0) {
-        // Scrolling UVs for two normal maps
-        vec2 uv1 = vWorldPos.xz * 0.1 * uNormalMapScale + vec2(uTime * uNormalMapSpeed, uTime * uNormalMapSpeed * 0.4);
-        vec2 uv2 = vWorldPos.xz * 0.07 * uNormalMapScale - vec2(uTime * uNormalMapSpeed * 0.6, uTime * uNormalMapSpeed);
+        // Add watery distortion to UVs
+        vec2 dist_uv = vWorldPos.xz * 0.02 * uNormalMapScale; // Scale distortion with normal scale
+        float distortion = snoise(vec3(dist_uv, uTime * uNormalMapSpeed * 0.2)) * 0.2; // Use speed to animate distortion
+
+        // Scrolling UVs for two normal maps, now with distortion
+        vec2 base_uv = vWorldPos.xz * 0.1 * uNormalMapScale;
+        vec2 uv1 = base_uv + distortion + vec2(uTime * uNormalMapSpeed, uTime * uNormalMapSpeed * 0.4);
+        vec2 uv2 = base_uv * 0.7 - distortion - vec2(uTime * uNormalMapSpeed * 0.6, uTime * uNormalMapSpeed);
         
         // Sample and unpack tangent-space normals
         vec3 normal1 = texture2D(tNormalMap, uv1).rgb * 2.0 - 1.0;

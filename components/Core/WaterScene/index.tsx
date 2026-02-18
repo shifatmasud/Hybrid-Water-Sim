@@ -1,4 +1,5 @@
 
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -605,8 +606,6 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
         if (hit) isInteracting.current = true;
     };
     
-    // Stop auto-rain when user starts interacting, resume after delay?
-    // For now, simpler: when mouse leaves, interacting is false.
     const onPointerLeave = () => {
         isInteracting.current = false;
         // Move mouse offscreen in sim
@@ -615,8 +614,39 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
         }
     };
 
+    const onPointerDown = (e: PointerEvent) => {
+        if (!containerRef.current || !cameraRef.current || !clockRef.current) return;
+        
+        // Only trigger on primary pointer (e.g., left-click or first touch)
+        // to avoid conflicts with orbit controls.
+        if (!e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return;
+
+        const rect = containerRef.current.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        
+        mouse.current.set(x, y);
+        raycaster.current.setFromCamera(mouse.current, cameraRef.current);
+        
+        const target = new THREE.Vector3();
+        const intersection = raycaster.current.ray.intersectPlane(interactionPlane.current, target);
+
+        if (intersection) {
+             const newImpact: Impact = {
+                x: target.x,
+                z: target.z,
+                strength: configRef.current.impactStrength,
+                startTime: clockRef.current.getElapsedTime(),
+            };
+            // Push to both vertex and texture impact queues
+            discreteImpactsRef.current.push(newImpact);
+            textureImpactsToProcessRef.current.push(newImpact);
+        }
+    };
+
     containerRef.current.addEventListener('pointermove', onPointerMove);
     containerRef.current.addEventListener('pointerleave', onPointerLeave);
+    containerRef.current.addEventListener('pointerdown', onPointerDown);
 
     return () => {
         cancelAnimationFrame(frameIdRef.current);
@@ -624,6 +654,7 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
         if(containerRef.current && rendererRef.current) {
             containerRef.current.removeEventListener('pointermove', onPointerMove);
             containerRef.current.removeEventListener('pointerleave', onPointerLeave);
+            containerRef.current.removeEventListener('pointerdown', onPointerDown);
             containerRef.current.innerHTML = '';
         }
         renderTargetA.current?.dispose();
