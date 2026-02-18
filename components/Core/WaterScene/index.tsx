@@ -1,5 +1,4 @@
 
-
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -170,16 +169,14 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
     // Initial State - use a dark neutral color to avoid gray flash
     scene.background = new THREE.Color(0x101015);
 
-    const camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 2000);
+    const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 2000);
     cameraRef.current = camera;
     if (initialCameraState) camera.position.set(...initialCameraState.position);
-    else camera.position.set(0, 15, 60);
+    else camera.position.set(0, 45, 160);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controlsRef.current = controls;
     controls.enableDamping = true;
-    controls.maxDistance = Infinity;
-    controls.minDistance = 0;
     if (initialCameraState) controls.target.set(...initialCameraState.target);
 
     // --- Scene Controller Setup ---
