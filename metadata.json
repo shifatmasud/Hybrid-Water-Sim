@@ -1,5 +1,5 @@
 {
-  "name": "Hybrid water simulation",
-  "description": "",
+  "name": "Advanced Hybrid Water Simulation",
+  "description": "High-fidelity water simulation with procedural waves, ripple physics, and debug visualization tools.",
   "requestFramePermissions": []
 }

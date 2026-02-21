@@ -23,6 +23,7 @@ uniform float uRadius;
 uniform float uDamping;
 uniform float uViscosity; // New uniform for viscosity
 uniform bool uMouseDown;
+uniform bool uGentleImpact;
 uniform vec3 uImpacts[MAX_IMPACTS];
 uniform int uImpactCount;
 varying vec2 vUv;
@@ -43,7 +44,7 @@ void main() {
 
     // Height Laplacian (for acceleration)
     float laplacian = (n.r + s.r + e.r + w.r) - 4.0 * height;
-    vel += laplacian * 0.1; // Reduced from 0.5 to slow down wave propagation
+    vel += laplacian * 0.5; // Spring force
 
     // Velocity Laplacian (for viscosity/damping)
     float vel_laplacian = (n.g + s.g + e.g + w.g) - 4.0 * vel;
@@ -56,9 +57,9 @@ void main() {
     if (uMouseDown) {
         float dist = distance(vUv, uMouse);
         if (dist < uRadius) {
-            // Smooth falloff for the brush
-            float amount = uStrength * (1.0 - smoothstep(0.0, uRadius, dist));
-            height -= amount; // Push water down
+            float falloff = uGentleImpact ? pow(1.0 - smoothstep(0.0, uRadius, dist), 2.0) : (1.0 - smoothstep(0.0, uRadius, dist));
+            float amount = uStrength * falloff;
+            height -= amount; 
         }
     }
     
@@ -67,10 +68,11 @@ void main() {
     if (uImpactCount > 0) {
         for (int i = 0; i < MAX_IMPACTS; i++) {
             if (i >= uImpactCount) break;
-            vec3 impact = uImpacts[i]; // .xy = uv, .z = strength
+            vec3 impact = uImpacts[i]; 
             float dist = distance(vUv, impact.xy);
             if (dist < uRadius) {
-                float amount = impact.z * (1.0 - smoothstep(0.0, uRadius, dist));
+                float falloff = uGentleImpact ? pow(1.0 - smoothstep(0.0, uRadius, dist), 2.0) : (1.0 - smoothstep(0.0, uRadius, dist));
+                float amount = impact.z * falloff;
                 impactForce -= amount;
             }
         }

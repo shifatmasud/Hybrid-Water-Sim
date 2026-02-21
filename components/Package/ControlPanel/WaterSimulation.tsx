@@ -355,20 +355,6 @@ export const WaterSimulation: React.FC<WaterSimulationPanelProps> = ({
         </Accordion>
 
         <Accordion title="Surface Detail">
-            <Button
-                label="Upload Chop Map"
-                onClick={() => document.getElementById('secondary-normal-map-upload')?.click()}
-                variant="secondary"
-                size="S"
-                icon="ph-upload-simple"
-            />
-            <input
-                type="file"
-                id="secondary-normal-map-upload"
-                style={{ display: 'none' }}
-                accept="image/*"
-                onChange={(e) => e.target.files && onWaterPropChange({ secondaryNormalMapUrl: URL.createObjectURL(e.target.files[0]) })}
-            />
             <Toggle 
                 label="Enable Chop" 
                 isOn={waterConfig.useSecondaryNormals} 
@@ -397,11 +383,6 @@ export const WaterSimulation: React.FC<WaterSimulationPanelProps> = ({
             label="Gentle Impact" 
             isOn={waterConfig.gentleImpact} 
             onToggle={() => onWaterPropChange({ gentleImpact: !waterConfig.gentleImpact })} 
-          />
-          <Toggle 
-            label="Debug Normals" 
-            isOn={waterConfig.debugNormalMap} 
-            onToggle={() => onWaterPropChange({ debugNormalMap: !waterConfig.debugNormalMap })} 
           />
         </Accordion>
 
@@ -447,6 +428,14 @@ export const WaterSimulation: React.FC<WaterSimulationPanelProps> = ({
           <LocalRange label="Intensity" value={waterConfig.causticsIntensity * 10} min={0} max={50} onChange={(v) => onWaterPropChange({ causticsIntensity: v / 10 })} />
           <LocalRange label="Scale" value={waterConfig.causticsScale * 100} min={1} max={50} onChange={(v) => onWaterPropChange({ causticsScale: v / 100 })} />
           <LocalRange label="Speed" value={waterConfig.causticsSpeed * 10} min={0} max={50} onChange={(v) => onWaterPropChange({ causticsSpeed: v / 10 })} />
+        </Accordion>
+
+        <Accordion title="Debug">
+          <Toggle 
+            label="Debug Normals" 
+            isOn={waterConfig.debugNormals} 
+            onToggle={() => onWaterPropChange({ debugNormals: !waterConfig.debugNormals })} 
+          />
         </Accordion>
       </div>
     </>
