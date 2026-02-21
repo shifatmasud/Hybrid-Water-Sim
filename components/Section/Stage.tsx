@@ -14,15 +14,17 @@ interface StageProps {
   waterConfig: WaterConfig;
   sceneController: React.MutableRefObject<Partial<SceneController>>;
   isSplitView: boolean;
+  mouseHoverEnabled: boolean;
 }
 
 const Stage: React.FC<StageProps> = ({ 
     waterConfig,
     sceneController,
     isSplitView,
+    mouseHoverEnabled,
 }) => {
   return (
-    <WaterScene config={waterConfig} sceneController={sceneController} isSplitView={isSplitView} />
+    <WaterScene config={waterConfig} sceneController={sceneController} isSplitView={isSplitView} mouseHoverEnabled={mouseHoverEnabled} />
   );
 };
 

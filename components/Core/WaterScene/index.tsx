@@ -33,6 +33,7 @@ interface WaterSceneProps {
   isSplitView: boolean;
   initialCameraState?: { position: [number, number, number], target: [number, number, number] } | null;
   sceneController?: React.MutableRefObject<Partial<SceneController>>;
+  mouseHoverEnabled?: boolean;
 }
 
 const extractPaletteFromTexture = (texture: THREE.DataTexture) => {
@@ -170,7 +171,7 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
     // Initial State - use a dark neutral color to avoid gray flash
     scene.background = new THREE.Color(0x101015);
 
-    const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 2000);
+    const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 4000);
     cameraRef.current = camera;
     if (initialCameraState) camera.position.set(...initialCameraState.position);
     else camera.position.set(0, 45, 160);
@@ -601,7 +602,8 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
         return false;
     };
 
-    const onPointerMove = (e: PointerEvent) => {
+        const onPointerMove = (e: PointerEvent) => {
+        if (!configRef.current.mouseHoverEnabled) return;
         const hit = updateMouse(e);
         if (hit) isInteracting.current = true;
     };

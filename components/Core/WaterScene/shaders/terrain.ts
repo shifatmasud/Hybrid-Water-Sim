@@ -24,7 +24,7 @@ void main() {
     // Rolling dunes: Less jagged, more flowy
     // We combine sine waves with noise
     float dune = sin(p.x * 2.0 + p.y * 0.5) * 5.0; 
-    float detail = simplex_fbm(p * 2.0, 3, 0.5, 2.0) * 15.0;
+    float detail = simplex_fbm(p * 2.0, 2, 0.5, 2.0) * 15.0;
     
     float elevation = dune + detail;
     

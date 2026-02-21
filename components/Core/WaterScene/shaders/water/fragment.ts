@@ -17,6 +17,8 @@ uniform float uSunIntensity;
 uniform float uNormalFlatness;
 uniform float uIOR;
 uniform sampler2D tSky;
+uniform sampler2D tRipple;
+uniform vec2 uResolution;
 uniform float uTime;
 uniform float uWaveHeight;
 
@@ -26,6 +28,17 @@ uniform sampler2D tNormalMap;
 uniform float uNormalMapScale;
 uniform float uNormalMapSpeed;
 uniform float uNormalMapStrength;
+
+// Secondary Normal Map (Chop)
+uniform bool uUseSecondaryNormals;
+uniform sampler2D tSecondaryNormalMap;
+uniform float uSecondaryNormalMapScale;
+uniform float uSecondaryNormalMapSpeed;
+uniform float uSecondaryNormalMapStrength;
+
+// Specular
+uniform float uSpecularIntensity;
+uniform float uSpecularSharpness;
 
 // Surface Texture (Foam) Uniforms
 uniform bool uUseTextureSurface;
@@ -63,9 +76,9 @@ float getProceduralNoiseValue(int noiseType, vec2 p, float speed) {
     vec2 pos = p + vec2(uTime * speed * 0.5, uTime * speed * 0.5 * 0.4);
     
     if (noiseType == 0) { // Simplex FBM
-        return simplex_fbm(pos, 3, 0.5, 2.0);
+        return simplex_fbm(pos, 2, 0.5, 2.0);
     } else if (noiseType == 1) { // Perlin FBM
-        return perlin_fbm(pos, 3, 0.5, 2.0);
+        return perlin_fbm(pos, 2, 0.5, 2.0);
     } else if (noiseType == 2) { // Voronoi
         return (voronoi(pos * 0.5, uTime * speed) * 2.0 - 1.0);
     }
@@ -120,6 +133,18 @@ void main() {
         // Blend procedural and texture-based normals
         normal = normalize(mix(normal, worldTexNormal, uNormalMapStrength));
     }
+
+    if (uUseSecondaryNormals) {
+        vec2 uv3 = vWorldPos.xz * 0.5 * uSecondaryNormalMapScale + vec2(uTime * uSecondaryNormalMapSpeed, -uTime * uSecondaryNormalMapSpeed * 0.7);
+        vec3 secondaryNormal = texture2D(tSecondaryNormalMap, uv3).xyz * 2.0 - 1.0;
+        
+        vec3 tangent = normalize(cross(vec3(0.0, 1.0, 0.0), normal));
+        vec3 bitangent = normalize(cross(normal, tangent));
+        mat3 tbn = mat3(tangent, bitangent, normal);
+        vec3 worldSecondaryNormal = normalize(tbn * secondaryNormal);
+
+        normal = normalize(mix(normal, worldSecondaryNormal, uSecondaryNormalMapStrength));
+    }
     
     // Apply normal flatness
     normal.xz *= (1.0 - uNormalFlatness * 0.01); 
@@ -154,16 +179,19 @@ void main() {
         vec3 sunDir = normalize(uSunPosition);
         vec3 halfVec = normalize(sunDir + viewDir);
         float NdotH = max(0.0, dot(faceNormal, halfVec));
-        float specular = pow(NdotH, 100.0 * (1.0 - uRoughness));
+        float specular = pow(NdotH, uSpecularSharpness) * uSpecularIntensity;
         
         // Mix reflection with water body
         finalColor = mix(body, reflection, fresnel);
-        finalColor += specular * vec3(1.0, 0.95, 0.8) * uSunIntensity;
+        finalColor += specular * vec3(1.0, 0.95, 0.8) * uSunIntensity * (1.0 - fresnel);
         
         // --- FOAM LOGIC ---
         if (uUseTextureSurface && uSurfaceTextureStrength > 0.0) {
-            // 1. Procedural foam based on wave crests
+            // 1. Procedural foam based on wave crests and velocity
             float crestFactor = smoothstep(uWaveHeight * 0.7, uWaveHeight * 1.2, vElevation);
+            float velocity = texture2D(tRipple, gl_FragCoord.xy / uResolution).g;
+            float turbulence = smoothstep(0.0, 0.1, abs(velocity));
+            float proceduralFoam = (crestFactor + turbulence) * 0.5;
 
             // 2. Texture-based foam pattern
             vec2 uv1 = vWorldPos.xz * 0.1 * uSurfaceTextureScale + vec2(uTime * uSurfaceTextureSpeed, 0.0);
@@ -171,7 +199,7 @@ void main() {
             float foamPattern = texture2D(tSurfaceMap, uv1).r * texture2D(tSurfaceMap, uv2).g;
 
             // 3. Combine and apply
-            float foamAmount = crestFactor * foamPattern * uSurfaceTextureStrength;
+            float foamAmount = proceduralFoam * foamPattern * uSurfaceTextureStrength;
             finalColor = mix(finalColor, uFoamColor, foamAmount);
         }
 

@@ -21,6 +21,7 @@ uniform vec2 uMouse;
 uniform float uStrength;
 uniform float uRadius;
 uniform float uDamping;
+uniform float uViscosity; // New uniform for viscosity
 uniform bool uMouseDown;
 uniform vec3 uImpacts[MAX_IMPACTS];
 uniform int uImpactCount;
@@ -34,16 +35,20 @@ void main() {
     float height = data.r;
     float vel = data.g;
 
-    // Calculate average neighbor height
-    float avg = (
-        texture2D(tDiffuse, vUv + vec2(-cellSize.x, 0.0)).r +
-        texture2D(tDiffuse, vUv + vec2(cellSize.x, 0.0)).r +
-        texture2D(tDiffuse, vUv + vec2(0.0, -cellSize.y)).r +
-        texture2D(tDiffuse, vUv + vec2(0.0, cellSize.y)).r
-    ) * 0.25;
+    // Sample neighbors for height and velocity
+    vec4 n = texture2D(tDiffuse, vUv + vec2(0.0, -cellSize.y));
+    vec4 s = texture2D(tDiffuse, vUv + vec2(0.0, cellSize.y));
+    vec4 e = texture2D(tDiffuse, vUv + vec2(cellSize.x, 0.0));
+    vec4 w = texture2D(tDiffuse, vUv + vec2(-cellSize.x, 0.0));
 
-    // Wave equation: acceleration proportional to Laplacian (avg - height)
-    vel += (avg - height) * 2.0;
+    // Height Laplacian (for acceleration)
+    float laplacian = (n.r + s.r + e.r + w.r) - 4.0 * height;
+    vel += laplacian * 0.5; // Spring force
+
+    // Velocity Laplacian (for viscosity/damping)
+    float vel_laplacian = (n.g + s.g + e.g + w.g) - 4.0 * vel;
+    vel += vel_laplacian * uViscosity;
+
     vel *= uDamping;
     height += vel;
 

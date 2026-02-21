@@ -44,6 +44,7 @@ const MetaPrototype = () => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const sceneControllerRef = useRef<Partial<SceneController>>({});
   const [isSplitView, setIsSplitView] = useState(false);
+  const [mouseHoverEnabled, setMouseHoverEnabled] = useState(false);
   const [skyboxOptionsState, setSkyboxOptionsState] = useState<SkyboxOption[]>(skyboxOptions);
 
   const addLog = useCallback((message: string) => {
@@ -58,56 +59,63 @@ const MetaPrototype = () => {
   // -- Water Simulation State --
   const [waterConfig, setWaterConfig] = useState<WaterConfig>({
     skyboxUrl: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/evening_meadow_1k.hdr",
-    sunIntensity: 0.2,
-    colorShallow: "#e9e7e6",
-    colorDeep: "#e7e1ed",
-    transparency: 0.8,
-    roughness: 0.2,
-    waveHeight: 0.2,
-    waveSpeed: 0.05,
-    waveScale: 1.5,
-    normalFlatness: 30,
-    noiseType: "perlin",
+    sunIntensity: 1.2,
+    colorShallow: "#00f2ff",
+    colorDeep: "#003b5c",
+    transparency: 0.75,
+    roughness: 0.15,
+    waveHeight: 0.35,
+    waveSpeed: 0.08,
+    waveScale: 2.2,
+    normalFlatness: 15,
+    noiseType: "simplex",
     useNoiseLayerB: true,
-    noiseBlendingModeAB: "add",
-    noiseBlendAB: 0.5,
-    noiseTypeB: "simplex",
-    waveHeightB: 0.1,
-    waveSpeedB: 0.15,
-    waveScaleB: 3,
-    useNoiseLayerC: true,
+    noiseBlendingModeAB: "mix",
+    noiseBlendAB: 0.4,
+    noiseTypeB: "perlin",
+    waveHeightB: 0.15,
+    waveSpeedB: 0.12,
+    waveScaleB: 4.5,
+    useNoiseLayerC: false,
     noiseBlendingModeBC: "mix",
-    noiseBlendBC: 0.3,
+    noiseBlendBC: 0.2,
     noiseTypeC: "voronoi",
     waveHeightC: 0.05,
     waveSpeedC: 0.02,
-    waveScaleC: 5,
+    waveScaleC: 8,
     useTextureNormals: true,
-    normalMapScale: 0.5,
-    normalMapSpeed: 0.03,
-    normalMapStrength: 0.3,
+    normalMapScale: 0.8,
+    normalMapSpeed: 0.04,
+    normalMapStrength: 0.45,
     useTextureSurface: true,
     foamColor: "#ffffff",
-    surfaceTextureScale: 1.5,
-    surfaceTextureSpeed: 0.02,
-    surfaceTextureStrength: 0.4,
+    surfaceTextureScale: 2.0,
+    surfaceTextureSpeed: 0.03,
+    surfaceTextureStrength: 0.6,
+    useSecondaryNormals: true,
+    secondaryNormalMapScale: 12.0,
+    secondaryNormalMapSpeed: 0.08,
+    secondaryNormalMapStrength: 0.15,
+    specularIntensity: 1.5,
+    specularSharpness: 200,
     useDisplacement: true,
-    displacementStrength: 0.1,
-    displacementSpeed: 0.05,
-    underwaterDimming: 0.7,
-    underwaterLightIntensity: 3,
-    underwaterFogColor: "#e7e1ed",
-    ior: 1.2,
-    fogCutoffStart: 50,
-    fogCutoffEnd: 250,
-    rippleDamping: 0.95,
-    rippleStrength: 0.1,
-    rippleRadius: 0.03,
-    rippleIntensity: 4,
-    rippleNormalIntensity: 8,
-    causticsIntensity: 2.5,
-    causticsScale: 0.3,
-    causticsSpeed: 1,
+    displacementStrength: 0.12,
+    displacementSpeed: 0.06,
+    underwaterDimming: 0.8,
+    underwaterLightIntensity: 3.5,
+    underwaterFogColor: "#003b5c",
+    ior: 1.33,
+    fogCutoffStart: 20,
+    fogCutoffEnd: 180,
+    rippleDamping: 0.975,
+    rippleStrength: 0.15,
+    rippleRadius: 0.02,
+    rippleIntensity: 5.0,
+    rippleNormalIntensity: 12,
+    rippleViscosity: 0.95,
+    causticsIntensity: 4.0,
+    causticsScale: 0.25,
+    causticsSpeed: 1.2,
     useColorRamp: true,
     colorRampNoiseType: "simplex",
     colorRampNoiseScale: 0.2,
@@ -128,7 +136,10 @@ const MetaPrototype = () => {
     colorRampStop5Position: 1,
     useTextureImpacts: true,
     useVertexImpacts: true,
-    impactStrength: 1.8
+    impactStrength: 1.8,
+    mouseHoverEnabled: false,
+    smoothNormalScroll: true,
+    gentleImpact: true,
   });
 
   const handleWaterConfigChange = (updates: Partial<WaterConfig>) => {
@@ -225,7 +236,7 @@ const MetaPrototype = () => {
       backgroundColor: theme.Color.Base.Surface[1],
       overflow: 'hidden',
     }}>
-      <Stage waterConfig={waterConfig} sceneController={sceneControllerRef} isSplitView={isSplitView} />
+      <Stage waterConfig={waterConfig} sceneController={sceneControllerRef} isSplitView={isSplitView} mouseHoverEnabled={mouseHoverEnabled} />
       <ThemeToggleButton />
       
       <AnimatePresence>
@@ -244,6 +255,7 @@ const MetaPrototype = () => {
               skyboxOptions={skyboxOptionsState}
               onHdrUpload={handleHdrUpload}
               onAddDiscreteImpact={handleAddDiscreteImpact}
+               onToggleMouseHover={() => setMouseHoverEnabled(prev => !prev)}
             />
           </FloatingWindow>
         )}

@@ -95,6 +95,16 @@ export interface WaterConfig {
   surfaceTextureSpeed: number;
   surfaceTextureStrength: number;
 
+  // Secondary Normal Map (Chop)
+  useSecondaryNormals: boolean;
+  secondaryNormalMapScale: number;
+  secondaryNormalMapSpeed: number;
+  secondaryNormalMapStrength: number;
+
+  // Specular
+  specularIntensity: number; // 0 - 5
+  specularSharpness: number; // 1 - 500
+
   // Displacement Mapping
   useDisplacement: boolean;
   displacementStrength: number;
@@ -114,6 +124,7 @@ export interface WaterConfig {
   rippleRadius: number; // 0.01 - 0.2
   rippleIntensity: number; // 0.1 - 5.0
   rippleNormalIntensity: number; // 0.0 - 20.0
+  rippleViscosity: number; // 0.0 - 0.2
   
   // Caustics
   causticsIntensity: number; // 0 - 5
@@ -144,4 +155,7 @@ export interface WaterConfig {
   useTextureImpacts: boolean;
   useVertexImpacts: boolean;
   impactStrength: number;
+  mouseHoverEnabled: boolean;
+  smoothNormalScroll: boolean;
+  gentleImpact: boolean;
 }

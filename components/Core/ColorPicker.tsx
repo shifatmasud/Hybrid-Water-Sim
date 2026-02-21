@@ -2,9 +2,10 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../../Theme.tsx';
+import Portal from './Portal.tsx';
 
 interface ColorPickerProps {
   label: string;
@@ -16,6 +17,19 @@ interface ColorPickerProps {
 const ColorPicker: React.FC<ColorPickerProps> = ({ label, value, onChange, style }) => {
   const { theme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const [popoverPosition, setPopoverPosition] = useState({ top: 0, left: 0, width: 0 });
+
+  useEffect(() => {
+    if (isOpen && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPopoverPosition({
+        top: rect.top + window.scrollY - 10, // Position above the trigger
+        left: rect.left + window.scrollX,
+        width: rect.width,
+      });
+    }
+  }, [isOpen]);
 
   const handleHexChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange(e);
@@ -66,9 +80,9 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ label, value, onChange, style
 
   const popoverStyle: React.CSSProperties = {
     position: 'absolute',
-    bottom: '100%',
-    left: 0,
-    width: '100%',
+    top: `${popoverPosition.top}px`,
+    left: `${popoverPosition.left}px`,
+    width: `${popoverPosition.width}px`,
     marginBottom: theme.spacing['Space.S'],
     backgroundColor: theme.Color.Base.Surface[2],
     border: `1px solid ${theme.Color.Base.Surface[3]}`,
@@ -84,7 +98,7 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ label, value, onChange, style
         {label}
       </label>
       
-      <div style={{ display: 'flex', gap: theme.spacing['Space.S'] }}>
+      <div ref={triggerRef} style={{ display: 'flex', gap: theme.spacing['Space.S'] }}>
         <motion.div 
             style={swatchStyle} 
             onClick={() => setIsOpen(!isOpen)}
@@ -114,6 +128,7 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ label, value, onChange, style
       {/* Popover */}
       <AnimatePresence>
         {isOpen && (
+          <Portal>
             <motion.div
                 style={popoverStyle}
                 {...({
@@ -144,6 +159,7 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ label, value, onChange, style
                     ))}
                 </div>
             </motion.div>
+          </Portal>
         )}
       </AnimatePresence>
     </div>

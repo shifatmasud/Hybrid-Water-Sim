@@ -59,9 +59,9 @@ float getProceduralNoiseHeight(int noiseType, vec2 p, float speed, float height)
     vec2 pos = p + vec2(uTime * speed * 0.5, uTime * speed * 0.5 * 0.4);
     
     if (noiseType == 0) { // Simplex FBM
-        return simplex_fbm(pos, 3, 0.5, 2.0) * height;
+        return simplex_fbm(pos, 2, 0.5, 2.0) * height;
     } else if (noiseType == 1) { // Perlin FBM
-        return perlin_fbm(pos, 3, 0.5, 2.0) * height;
+        return perlin_fbm(pos, 2, 0.5, 2.0) * height;
     } else if (noiseType == 2) { // Voronoi
         return (voronoi(pos * 0.5, uTime * speed) * 2.0 - 1.0) * height;
     }
@@ -168,6 +168,9 @@ void main() {
         texture_displacement = texture2D(tDisplacementMap, disp_uv).r * uDisplacementStrength * 10.0;
     }
 
+    // 5.5 High-frequency chop
+    float chop = snoise(worldPosition.xz * 2.0 + uTime * 0.5) * 0.1;
+
     // 6. Vertex-based ripple impacts
     float vertex_ripple_displacement = 0.0;
     if (uUseVertexImpacts && uVertexImpactCount > 0) {
@@ -196,7 +199,7 @@ void main() {
     // 7. Apply dampening and combine all displacements
     float procedural_displacement = (main_displacement * fbm_dampening) + small_waves;
     float ripple_displacement = ripple_height * uRippleIntensity;
-    pos.y += procedural_displacement + ripple_displacement + texture_displacement + vertex_ripple_displacement;
+    pos.y += procedural_displacement + ripple_displacement + texture_displacement + vertex_ripple_displacement + chop;
 
     vElevation = pos.y;
     vec4 finalWorldPos = modelMatrix * vec4(pos, 1.0);

@@ -98,13 +98,21 @@ float snoise(vec2 v) {
   return 130.0 * dot(m, g);
 }
 
+mat2 rotate(float angle) {
+    float s = sin(angle);
+    float c = cos(angle);
+    return mat2(c, -s, s, c);
+}
+
 float simplex_fbm(vec2 st, int octaves, float persistence, float lacunarity) {
     float value = 0.0;
     float amplitude = 0.5;
     float frequency = 1.0;
-    for (int i = 0; i < octaves; i++) {
+    // Optimization: Use a smaller fixed number of octaves or cap it
+    int actualOctaves = min(octaves, 2); 
+    for (int i = 0; i < 2; i++) {
         value += amplitude * snoise(st * frequency);
-        st = st * 2.0 + vec2(100.0, 0.0);
+        st = rotate(0.785) * st * 2.0 + vec2(100.0, 0.0); // Rotate domain
         frequency *= lacunarity;
         amplitude *= persistence;
     }
@@ -150,8 +158,9 @@ float perlin_fbm(vec2 st, int octaves, float persistence, float lacunarity) {
     float value = 0.0;
     float amplitude = 0.5;
     float frequency = 1.0;
-    for (int i = 0; i < octaves; i++) {
+    for (int i = 0; i < 2; i++) {
         value += amplitude * pnoise(st * frequency);
+        st = rotate(0.785) * st; // Rotate domain
         frequency *= lacunarity;
         amplitude *= persistence;
     }

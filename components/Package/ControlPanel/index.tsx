@@ -26,6 +26,7 @@ interface ControlPanelProps {
   skyboxOptions: SkyboxOption[];
   onHdrUpload: (file: File) => void;
   onAddDiscreteImpact: () => void;
+  onToggleMouseHover: () => void;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = (props) => {
@@ -53,6 +54,7 @@ const ControlPanel: React.FC<ControlPanelProps> = (props) => {
         skyboxOptions={props.skyboxOptions}
         onHdrUpload={props.onHdrUpload}
         onAddDiscreteImpact={props.onAddDiscreteImpact}
+        onToggleMouseHover={props.onToggleMouseHover}
       />
       
       {/*

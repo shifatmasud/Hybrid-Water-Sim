@@ -2,9 +2,10 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../../Theme.tsx';
+import Portal from './Portal.tsx';
 
 interface SelectProps {
   label: string;
@@ -17,6 +18,19 @@ interface SelectProps {
 const Select: React.FC<SelectProps> = ({ label, value, onChange, options, style }) => {
   const { theme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+
+  useEffect(() => {
+    if (isOpen && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + window.scrollY,
+        left: rect.left + window.scrollX,
+        width: rect.width,
+      });
+    }
+  }, [isOpen]);
 
   // Find label for current value
   const currentLabel = options.find(opt => opt.value === value)?.label || value;
@@ -46,9 +60,9 @@ const Select: React.FC<SelectProps> = ({ label, value, onChange, options, style 
 
   const dropdownStyle: React.CSSProperties = {
     position: 'absolute',
-    top: '100%',
-    left: 0,
-    width: '100%',
+    top: `${dropdownPosition.top}px`,
+    left: `${dropdownPosition.left}px`,
+    width: `${dropdownPosition.width}px`,
     marginTop: theme.spacing['Space.XS'],
     backgroundColor: theme.Color.Base.Surface[2],
     border: `1px solid ${theme.Color.Base.Surface[3]}`,
@@ -67,6 +81,7 @@ const Select: React.FC<SelectProps> = ({ label, value, onChange, options, style 
       
       {/* Trigger Button */}
       <motion.button
+        ref={triggerRef}
         style={triggerStyle}
         onClick={() => setIsOpen(!isOpen)}
         {...({
@@ -94,43 +109,45 @@ const Select: React.FC<SelectProps> = ({ label, value, onChange, options, style 
       {/* Dropdown Menu */}
       <AnimatePresence>
         {isOpen && (
-          <motion.div
-            style={dropdownStyle}
-            {...({
-              initial: { opacity: 0, y: -10, scaleY: 0.9 },
-              animate: { opacity: 1, y: 0, scaleY: 1 },
-              exit: { opacity: 0, y: -10, scaleY: 0.9 },
-              transition: { duration: 0.15 }
-            } as any)}
-          >
-            {options.map((option) => (
-              <motion.div
-                key={option.value}
-                onClick={() => handleSelect(option.value)}
-                style={{
-                  padding: `${theme.spacing['Space.S']} ${theme.spacing['Space.M']}`,
-                  cursor: 'pointer',
-                  borderRadius: theme.radius['Radius.S'],
-                  color: option.value === value ? theme.Color.Accent.Content[1] : theme.Color.Base.Content[1],
-                  backgroundColor: option.value === value ? theme.Color.Accent.Surface[1] : 'transparent',
-                  fontFamily: theme.Type.Readable.Body.M.fontFamily,
-                  fontSize: '14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: '2px'
-                }}
-                {...({
-                  whileHover: { 
-                      backgroundColor: option.value === value ? theme.Color.Accent.Surface[1] : theme.Color.Base.Surface[3] 
-                  }
-                } as any)}
-              >
-                {option.label}
-                {option.value === value && <i className="ph-bold ph-check" />}
-              </motion.div>
-            ))}
-          </motion.div>
+          <Portal>
+            <motion.div
+              style={dropdownStyle}
+              {...({
+                initial: { opacity: 0, y: -10, scaleY: 0.9 },
+                animate: { opacity: 1, y: 0, scaleY: 1 },
+                exit: { opacity: 0, y: -10, scaleY: 0.9 },
+                transition: { duration: 0.15 }
+              } as any)}
+            >
+              {options.map((option) => (
+                <motion.div
+                  key={option.value}
+                  onClick={() => handleSelect(option.value)}
+                  style={{
+                    padding: `${theme.spacing['Space.S']} ${theme.spacing['Space.M']}`,
+                    cursor: 'pointer',
+                    borderRadius: theme.radius['Radius.S'],
+                    color: option.value === value ? theme.Color.Accent.Content[1] : theme.Color.Base.Content[1],
+                    backgroundColor: option.value === value ? theme.Color.Accent.Surface[1] : 'transparent',
+                    fontFamily: theme.Type.Readable.Body.M.fontFamily,
+                    fontSize: '14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: '2px'
+                  }}
+                  {...({
+                    whileHover: { 
+                        backgroundColor: option.value === value ? theme.Color.Accent.Surface[1] : theme.Color.Base.Surface[3] 
+                    }
+                  } as any)}
+                >
+                  {option.label}
+                  {option.value === value && <i className="ph-bold ph-check" />}
+                </motion.div>
+              ))}
+            </motion.div>
+          </Portal>
         )}
       </AnimatePresence>
     </div>
