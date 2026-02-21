@@ -325,6 +325,10 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
         texture.wrapS = THREE.RepeatWrapping;
         texture.wrapT = THREE.RepeatWrapping;
     });
+    const secondaryNormalMapTexture = textureLoader.load(configRef.current.secondaryNormalMapUrl, (texture) => {
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+    });
     const noiseMapTexture = textureLoader.load(configRef.current.surfaceTextureUrl, (texture) => {
         texture.wrapS = THREE.RepeatWrapping;
         texture.wrapT = THREE.RepeatWrapping;
@@ -398,6 +402,14 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
             uNormalMapScale: { value: configRef.current.normalMapScale },
             uNormalMapSpeed: { value: configRef.current.normalMapSpeed },
             uNormalMapStrength: { value: configRef.current.normalMapStrength },
+            uSmoothNormalScroll: { value: configRef.current.smoothNormalScroll },
+            uDebugNormals: { value: configRef.current.debugNormalMap },
+            // Secondary Normal Map (Chop)
+            tSecondaryNormalMap: { value: secondaryNormalMapTexture },
+            uUseSecondaryNormals: { value: configRef.current.useSecondaryNormals },
+            uSecondaryNormalMapScale: { value: configRef.current.secondaryNormalMapScale },
+            uSecondaryNormalMapSpeed: { value: configRef.current.secondaryNormalMapSpeed },
+            uSecondaryNormalMapStrength: { value: configRef.current.secondaryNormalMapStrength },
             // Surface Texture (Foam) Uniforms
             tSurfaceMap: { value: noiseMapTexture },
             uUseTextureSurface: { value: configRef.current.useTextureSurface },
@@ -767,6 +779,21 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
     });
   }, [config.surfaceTextureUrl]);
 
+  // --- Secondary Normal Map Loading ---
+  useEffect(() => {
+    if (!config.secondaryNormalMapUrl) return;
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(config.secondaryNormalMapUrl, (texture) => {
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      materialsRef.current.forEach(mat => {
+        if (mat instanceof THREE.ShaderMaterial && mat.uniforms.tSecondaryNormalMap) {
+          mat.uniforms.tSecondaryNormalMap.value = texture;
+        }
+      });
+    });
+  }, [config.secondaryNormalMapUrl]);
+
 
   // --- CONFIG UPDATE ---
   useEffect(() => {
@@ -866,6 +893,12 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
             if(mat.uniforms.uNormalMapScale) mat.uniforms.uNormalMapScale.value = config.normalMapScale;
             if(mat.uniforms.uNormalMapSpeed) mat.uniforms.uNormalMapSpeed.value = config.normalMapSpeed;
             if(mat.uniforms.uNormalMapStrength) mat.uniforms.uNormalMapStrength.value = config.normalMapStrength;
+            if(mat.uniforms.uSmoothNormalScroll) mat.uniforms.uSmoothNormalScroll.value = config.smoothNormalScroll;
+            if(mat.uniforms.uDebugNormals) mat.uniforms.uDebugNormals.value = config.debugNormalMap;
+            if(mat.uniforms.uUseSecondaryNormals) mat.uniforms.uUseSecondaryNormals.value = config.useSecondaryNormals;
+            if(mat.uniforms.uSecondaryNormalMapScale) mat.uniforms.uSecondaryNormalMapScale.value = config.secondaryNormalMapScale;
+            if(mat.uniforms.uSecondaryNormalMapSpeed) mat.uniforms.uSecondaryNormalMapSpeed.value = config.secondaryNormalMapSpeed;
+            if(mat.uniforms.uSecondaryNormalMapStrength) mat.uniforms.uSecondaryNormalMapStrength.value = config.secondaryNormalMapStrength;
             if(mat.uniforms.uUseTextureSurface) mat.uniforms.uUseTextureSurface.value = config.useTextureSurface;
             if(mat.uniforms.uFoamColor) mat.uniforms.uFoamColor.value.copy(foamColor);
             if(mat.uniforms.uSurfaceTextureScale) mat.uniforms.uSurfaceTextureScale.value = config.surfaceTextureScale;

@@ -108,14 +108,14 @@ const StateLayer: React.FC<StateLayerProps> = ({
 
   return (
     <div style={containerStyle}>
-        {layers.map(layer => {
+        {layers.map((layer, index) => {
              // Use live props for active layers, frozen values for decaying layers
              const currentX = layer.isActive ? x : layer.frozenX;
              const currentY = layer.isActive ? y : layer.frozenY;
 
              return (
                 <motion.div
-                    key={layer.id}
+                    key={`${layer.id}-${index}`}
                     style={{
                         ...baseStyles,
                         left: currentX,

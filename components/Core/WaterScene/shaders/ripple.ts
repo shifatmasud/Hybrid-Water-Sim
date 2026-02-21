@@ -43,7 +43,7 @@ void main() {
 
     // Height Laplacian (for acceleration)
     float laplacian = (n.r + s.r + e.r + w.r) - 4.0 * height;
-    vel += laplacian * 0.5; // Spring force
+    vel += laplacian * 0.1; // Reduced from 0.5 to slow down wave propagation
 
     // Velocity Laplacian (for viscosity/damping)
     float vel_laplacian = (n.g + s.g + e.g + w.g) - 4.0 * vel;

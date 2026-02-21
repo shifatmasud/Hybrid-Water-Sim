@@ -85,17 +85,17 @@ const MetaPrototype = () => {
     waveScaleC: 8,
     useTextureNormals: true,
     normalMapScale: 0.2,
-    normalMapSpeed: 0.06,
+    normalMapSpeed: 0.15,
     normalMapStrength: 0.28,
     useTextureSurface: true,
     foamColor: "#ffffff",
-    surfaceTextureScale: 3.5,
+    surfaceTextureScale: 1.2,
     surfaceTextureSpeed: 0.03,
-    surfaceTextureStrength: 0.6,
+    surfaceTextureStrength: 1.0,
     useSecondaryNormals: true,
-    secondaryNormalMapScale: 3,
-    secondaryNormalMapSpeed: 0.03,
-    secondaryNormalMapStrength: 0.31,
+    secondaryNormalMapScale: 0.8,
+    secondaryNormalMapSpeed: 0.05,
+    secondaryNormalMapStrength: 0.8,
     specularIntensity: 2.7,
     specularSharpness: 34,
     useDisplacement: true,
@@ -107,7 +107,7 @@ const MetaPrototype = () => {
     ior: 1.33,
     fogCutoffStart: 20,
     fogCutoffEnd: 180,
-    rippleDamping: 0.913,
+    rippleDamping: 0.99,
     rippleStrength: 0.63,
     rippleRadius: 0.03,
     rippleIntensity: 4.9,
@@ -141,7 +141,9 @@ const MetaPrototype = () => {
     smoothNormalScroll: true,
     gentleImpact: true,
     normalMapUrl: 'https://threejs.org/examples/textures/waternormals.jpg',
-    surfaceTextureUrl: 'https://threejs.org/examples/textures/waternormals.jpg'
+    secondaryNormalMapUrl: 'https://threejs.org/examples/textures/waternormals.jpg',
+    surfaceTextureUrl: 'https://threejs.org/examples/textures/waternormals.jpg',
+    debugNormalMap: false
   });
 
   const handleWaterConfigChange = (updates: Partial<WaterConfig>) => {

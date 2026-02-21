@@ -28,6 +28,8 @@ uniform sampler2D tNormalMap;
 uniform float uNormalMapScale;
 uniform float uNormalMapSpeed;
 uniform float uNormalMapStrength;
+uniform bool uSmoothNormalScroll;
+uniform bool uDebugNormals;
 
 // Secondary Normal Map (Chop)
 uniform bool uUseSecondaryNormals;
@@ -85,6 +87,13 @@ float getProceduralNoiseValue(int noiseType, vec2 p, float speed) {
     return 0.0;
 }
 
+vec3 getTriPlanarBlend(vec3 _normal) {
+    vec3 blending = abs(_normal);
+    blending = normalize(max(blending, 0.00001)); // Force weights to sum to 1.0
+    blending /= vec3(blending.x + blending.y + blending.z);
+    return blending;
+}
+
 vec3 getColorFromRamp(float t) {
     if (t <= uColorRampPositions[0]) return uColorRamp[0];
 
@@ -116,11 +125,27 @@ void main() {
         vec2 uv2 = base_uv * 0.7 - distortion - vec2(uTime * uNormalMapSpeed * 0.6, uTime * uNormalMapSpeed);
         
         // Sample and unpack tangent-space normals
-        vec3 normal1 = texture2D(tNormalMap, uv1).rgb * 2.0 - 1.0;
-        vec3 normal2 = texture2D(tNormalMap, uv2).rgb * 2.0 - 1.0;
-        
-        // Blend texture normals
-        vec3 texNormal = normalize(normal1 + normal2);
+        vec3 texNormal;
+        if (uSmoothNormalScroll) {
+            vec2 uv_x = vWorldPos.yz * 0.1 * uNormalMapScale + uTime * uNormalMapSpeed * vec2(0.4, 0.2);
+            vec2 uv_y = vWorldPos.xz * 0.1 * uNormalMapScale + uTime * uNormalMapSpeed * vec2(0.3, 0.5);
+            vec2 uv_z = vWorldPos.xy * 0.1 * uNormalMapScale + uTime * uNormalMapSpeed * vec2(0.2, 0.3);
+
+            vec3 normal_x = texture2D(tNormalMap, uv_x).rgb * 2.0 - 1.0;
+            vec3 normal_y = texture2D(tNormalMap, uv_y).rgb * 2.0 - 1.0;
+            vec3 normal_z = texture2D(tNormalMap, uv_z).rgb * 2.0 - 1.0;
+
+            vec3 blendWeights = getTriPlanarBlend(normal);
+            texNormal = normalize(normal_x * blendWeights.x + normal_y * blendWeights.y + normal_z * blendWeights.z);
+        } else {
+            vec2 base_uv = vWorldPos.xz * 0.1 * uNormalMapScale;
+            vec2 uv1 = base_uv + vec2(uTime * uNormalMapSpeed, uTime * uNormalMapSpeed * 0.4);
+            vec2 uv2 = base_uv * 0.7 - vec2(uTime * uNormalMapSpeed * 0.6, uTime * uNormalMapSpeed);
+            
+            vec3 normal1 = texture2D(tNormalMap, uv1).rgb * 2.0 - 1.0;
+            vec3 normal2 = texture2D(tNormalMap, uv2).rgb * 2.0 - 1.0;
+            texNormal = normalize(normal1 + normal2);
+        }
 
         // Create TBN matrix from the procedural world-space normal
         vec3 tangent = normalize(cross(vec3(0.0, 1.0, 0.0), normal));
@@ -188,22 +213,32 @@ void main() {
         // --- FOAM LOGIC ---
         if (uUseTextureSurface && uSurfaceTextureStrength > 0.0) {
             // 1. Procedural foam based on wave crests and velocity
-            float crestFactor = smoothstep(uWaveHeight * 0.7, uWaveHeight * 1.2, vElevation);
+            float crestFactor = smoothstep(uWaveHeight * 2.0, uWaveHeight * 8.0, vElevation);
             float velocity = texture2D(tRipple, gl_FragCoord.xy / uResolution).g;
-            float turbulence = smoothstep(0.0, 0.1, abs(velocity));
-            float proceduralFoam = (crestFactor + turbulence) * 0.5;
+            float turbulence = smoothstep(0.0, 0.05, abs(velocity));
+            float proceduralFoam = (crestFactor + turbulence) * 0.6;
 
             // 2. Texture-based foam pattern
-            vec2 uv1 = vWorldPos.xz * 0.1 * uSurfaceTextureScale + vec2(uTime * uSurfaceTextureSpeed, 0.0);
-            vec2 uv2 = vWorldPos.xz * 0.13 * uSurfaceTextureScale - vec2(0.0, uTime * uSurfaceTextureSpeed * 0.8);
-            float foamPattern = texture2D(tSurfaceMap, uv1).r * texture2D(tSurfaceMap, uv2).g;
+            vec2 uv1 = vWorldPos.xz * 0.2 * uSurfaceTextureScale + vec2(uTime * uSurfaceTextureSpeed, 0.0);
+            vec2 uv2 = vWorldPos.xz * 0.25 * uSurfaceTextureScale - vec2(0.0, uTime * uSurfaceTextureSpeed * 0.8);
+            
+            // Sample and create high-contrast foam pattern
+            float foam1 = texture2D(tSurfaceMap, uv1).r;
+            float foam2 = texture2D(tSurfaceMap, uv2).g;
+            float foamPattern = smoothstep(0.1, 0.5, foam1 * foam2);
 
             // 3. Combine and apply
-            float foamAmount = proceduralFoam * foamPattern * uSurfaceTextureStrength;
+            float foamAmount = (proceduralFoam + foamPattern * 0.5) * uSurfaceTextureStrength;
+            foamAmount = clamp(foamAmount, 0.0, 1.0);
             finalColor = mix(finalColor, uFoamColor, foamAmount);
         }
 
-        gl_FragColor = vec4(finalColor, uTransparency);
+        if (uDebugNormals) {
+            // Map world-space normal (where Y is up) to standard normal map colors (where Z is up)
+            gl_FragColor = vec4(normal.x * 0.5 + 0.5, normal.z * 0.5 + 0.5, normal.y * 0.5 + 0.5, 1.0);
+        } else {
+            gl_FragColor = vec4(finalColor, uTransparency);
+        }
     } else {
         // --- UNDERWATER (Looking Up) ---
         vec3 I = viewDir;

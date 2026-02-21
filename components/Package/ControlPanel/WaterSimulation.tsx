@@ -355,6 +355,20 @@ export const WaterSimulation: React.FC<WaterSimulationPanelProps> = ({
         </Accordion>
 
         <Accordion title="Surface Detail">
+            <Button
+                label="Upload Chop Map"
+                onClick={() => document.getElementById('secondary-normal-map-upload')?.click()}
+                variant="secondary"
+                size="S"
+                icon="ph-upload-simple"
+            />
+            <input
+                type="file"
+                id="secondary-normal-map-upload"
+                style={{ display: 'none' }}
+                accept="image/*"
+                onChange={(e) => e.target.files && onWaterPropChange({ secondaryNormalMapUrl: URL.createObjectURL(e.target.files[0]) })}
+            />
             <Toggle 
                 label="Enable Chop" 
                 isOn={waterConfig.useSecondaryNormals} 
@@ -383,6 +397,11 @@ export const WaterSimulation: React.FC<WaterSimulationPanelProps> = ({
             label="Gentle Impact" 
             isOn={waterConfig.gentleImpact} 
             onToggle={() => onWaterPropChange({ gentleImpact: !waterConfig.gentleImpact })} 
+          />
+          <Toggle 
+            label="Debug Normals" 
+            isOn={waterConfig.debugNormalMap} 
+            onToggle={() => onWaterPropChange({ debugNormalMap: !waterConfig.debugNormalMap })} 
           />
         </Accordion>
 

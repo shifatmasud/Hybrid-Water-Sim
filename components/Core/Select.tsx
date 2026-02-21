@@ -119,9 +119,9 @@ const Select: React.FC<SelectProps> = ({ label, value, onChange, options, style 
                 transition: { duration: 0.15 }
               } as any)}
             >
-              {options.map((option) => (
+              {options.map((option, index) => (
                 <motion.div
-                  key={option.value}
+                  key={`${option.value}-${index}`}
                   onClick={() => handleSelect(option.value)}
                   style={{
                     padding: `${theme.spacing['Space.S']} ${theme.spacing['Space.M']}`,

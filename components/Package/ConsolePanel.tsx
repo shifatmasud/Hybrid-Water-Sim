@@ -44,7 +44,7 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({ logs }) => {
           </div>
       )}
       
-      {logs.map(log => <LogEntry key={log.id} log={log} />)}
+      {logs.map((log, index) => <LogEntry key={`${log.id}-${index}`} log={log} />)}
       
       <div ref={endRef} />
     </div>

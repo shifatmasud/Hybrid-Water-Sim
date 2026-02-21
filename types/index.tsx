@@ -159,5 +159,7 @@ export interface WaterConfig {
   smoothNormalScroll: boolean;
   gentleImpact: boolean;
   normalMapUrl: string;
+  secondaryNormalMapUrl: string;
   surfaceTextureUrl: string;
+  debugNormalMap: boolean;
 }
