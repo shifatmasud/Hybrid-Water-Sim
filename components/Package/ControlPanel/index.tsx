@@ -27,6 +27,8 @@ interface ControlPanelProps {
   onHdrUpload: (file: File) => void;
   onAddDiscreteImpact: () => void;
   onToggleMouseHover: () => void;
+  onNormalMapUpload: (file: File) => void;
+  onSurfaceTextureUpload: (file: File) => void;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = (props) => {
@@ -55,6 +57,8 @@ const ControlPanel: React.FC<ControlPanelProps> = (props) => {
         onHdrUpload={props.onHdrUpload}
         onAddDiscreteImpact={props.onAddDiscreteImpact}
         onToggleMouseHover={props.onToggleMouseHover}
+        onNormalMapUpload={props.onNormalMapUpload}
+        onSurfaceTextureUpload={props.onSurfaceTextureUpload}
       />
       
       {/*

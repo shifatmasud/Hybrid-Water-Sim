@@ -26,6 +26,8 @@ interface WaterSimulationPanelProps {
   onHdrUpload: (file: File) => void;
   onAddDiscreteImpact: () => void;
   onToggleMouseHover: () => void;
+  onNormalMapUpload: (file: File) => void;
+  onSurfaceTextureUpload: (file: File) => void;
 }
 
 // Helper for local motion values to use RangeSlider
@@ -66,6 +68,8 @@ export const WaterSimulation: React.FC<WaterSimulationPanelProps> = ({
     onHdrUpload,
     onAddDiscreteImpact,
     onToggleMouseHover,
+    onNormalMapUpload,
+    onSurfaceTextureUpload,
 }) => {
   const { theme } = useTheme();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -297,7 +301,35 @@ export const WaterSimulation: React.FC<WaterSimulationPanelProps> = ({
           )}
         </Accordion>
 
-        <Accordion title="Surface & Foam">
+                <Accordion title="Surface & Foam">
+          <Button
+            label="Upload Normal Map"
+            onClick={() => document.getElementById('normal-map-upload')?.click()}
+            variant="secondary"
+            size="S"
+            icon="ph-upload-simple"
+          />
+          <input
+            type="file"
+            id="normal-map-upload"
+            style={{ display: 'none' }}
+            accept="image/*"
+            onChange={(e) => e.target.files && onNormalMapUpload(e.target.files[0])}
+          />
+          <Button
+            label="Upload Surface Texture"
+            onClick={() => document.getElementById('surface-texture-upload')?.click()}
+            variant="secondary"
+            size="S"
+            icon="ph-upload-simple"
+          />
+          <input
+            type="file"
+            id="surface-texture-upload"
+            style={{ display: 'none' }}
+            accept="image/*"
+            onChange={(e) => e.target.files && onSurfaceTextureUpload(e.target.files[0])}
+          />
           <Toggle 
             label="Texture Normals" 
             isOn={waterConfig.useTextureNormals} 

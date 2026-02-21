@@ -321,11 +321,11 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
     waterGeo.rotateX(-Math.PI / 2);
 
     const textureLoader = new THREE.TextureLoader();
-    const normalMapTexture = textureLoader.load('https://threejs.org/examples/textures/waternormals.jpg', (texture) => {
+    const normalMapTexture = textureLoader.load(configRef.current.normalMapUrl, (texture) => {
         texture.wrapS = THREE.RepeatWrapping;
         texture.wrapT = THREE.RepeatWrapping;
     });
-    const noiseMapTexture = textureLoader.load('https://threejs.org/examples/textures/waternormals.jpg', (texture) => {
+    const noiseMapTexture = textureLoader.load(configRef.current.surfaceTextureUrl, (texture) => {
         texture.wrapS = THREE.RepeatWrapping;
         texture.wrapT = THREE.RepeatWrapping;
     });
@@ -736,6 +736,36 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
         }
     });
   }, [config.skyboxUrl, sceneController]);
+
+  // --- Normal Map Loading ---
+  useEffect(() => {
+    if (!config.normalMapUrl) return;
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(config.normalMapUrl, (texture) => {
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      materialsRef.current.forEach(mat => {
+        if (mat instanceof THREE.ShaderMaterial && mat.uniforms.tNormalMap) {
+          mat.uniforms.tNormalMap.value = texture;
+        }
+      });
+    });
+  }, [config.normalMapUrl]);
+
+  // --- Surface Texture Loading ---
+  useEffect(() => {
+    if (!config.surfaceTextureUrl) return;
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(config.surfaceTextureUrl, (texture) => {
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      materialsRef.current.forEach(mat => {
+        if (mat instanceof THREE.ShaderMaterial && mat.uniforms.tSurfaceMap) {
+          mat.uniforms.tSurfaceMap.value = texture;
+        }
+      });
+    });
+  }, [config.surfaceTextureUrl]);
 
 
   // --- CONFIG UPDATE ---

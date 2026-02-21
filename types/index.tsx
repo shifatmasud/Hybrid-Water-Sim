@@ -158,4 +158,6 @@ export interface WaterConfig {
   mouseHoverEnabled: boolean;
   smoothNormalScroll: boolean;
   gentleImpact: boolean;
+  normalMapUrl: string;
+  surfaceTextureUrl: string;
 }

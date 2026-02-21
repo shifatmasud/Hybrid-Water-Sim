@@ -139,7 +139,9 @@ const MetaPrototype = () => {
     impactStrength: 1.65,
     mouseHoverEnabled: false,
     smoothNormalScroll: true,
-    gentleImpact: true
+    gentleImpact: true,
+    normalMapUrl: 'https://threejs.org/examples/textures/waternormals.jpg',
+    surfaceTextureUrl: 'https://threejs.org/examples/textures/waternormals.jpg'
   });
 
   const handleWaterConfigChange = (updates: Partial<WaterConfig>) => {
@@ -215,6 +217,20 @@ const MetaPrototype = () => {
     addLog(`Custom HDR '${file.name}' loaded.`);
   };
 
+  const handleNormalMapUpload = (file: File) => {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    handleWaterConfigChange({ normalMapUrl: url });
+    addLog(`Custom normal map '${file.name}' loaded.`);
+  };
+
+  const handleSurfaceTextureUpload = (file: File) => {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    handleWaterConfigChange({ surfaceTextureUrl: url });
+    addLog(`Custom surface texture '${file.name}' loaded.`);
+  };
+
   const handleAddDiscreteImpact = useCallback(() => {
     sceneControllerRef.current.addDiscreteImpact?.();
     addLog('Triggered discrete ripple impact.');
@@ -255,6 +271,8 @@ const MetaPrototype = () => {
               skyboxOptions={skyboxOptionsState}
               onHdrUpload={handleHdrUpload}
               onAddDiscreteImpact={handleAddDiscreteImpact}
+               onNormalMapUpload={handleNormalMapUpload}
+               onSurfaceTextureUpload={handleSurfaceTextureUpload}
                onToggleMouseHover={() => setMouseHoverEnabled(prev => !prev)}
             />
           </FloatingWindow>
