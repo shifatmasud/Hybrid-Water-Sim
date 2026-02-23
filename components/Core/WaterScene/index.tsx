@@ -8,9 +8,6 @@ import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
-import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
-import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { WaterConfig } from '../../../types/index.tsx';
 import { createSandTexture } from './utils/createSandTexture.ts';
 import { godRayVertexShader, godRayFragmentShader } from './shaders/godray.ts';
@@ -22,6 +19,8 @@ import { SceneController } from '../../App/MetaPrototype.tsx';
 interface Impact {
     x: number;
     z: number;
+    u: number;
+    v: number;
     strength: number;
     startTime: number;
 }
@@ -39,29 +38,41 @@ interface WaterSceneProps {
 const extractPaletteFromTexture = (texture: THREE.DataTexture) => {
   if (!texture || !texture.image) return null;
 
-  const data = texture.image.data; // Float32Array
+  const data = texture.image.data;
   const width = texture.image.width;
   const height = texture.image.height;
 
   const samples: THREE.Color[] = [];
-  const sampleCount = 200;
+  const sampleCount = 40; // Reduced for performance
+
+  // Safety check for data type and length
+  if (!data || data.length === 0) return null;
+  
+  const stride = 4; // Most modern HDR textures are RGBA
 
   for (let i = 0; i < sampleCount; i++) {
       const x = Math.floor(Math.random() * width);
       const y = Math.floor(Math.random() * height);
-      const idx = (y * width + x) * 3; // RGB format for HDR
+      const idx = (y * width + x) * stride;
+      
+      if (idx + 2 >= data.length) continue;
       
       const r = data[idx];
       const g = data[idx + 1];
       const b = data[idx + 2];
       
-      // Simple Reinhard tone mapping for analysis
-      const toneMappedR = r / (r + 1);
-      const toneMappedG = g / (g + 1);
-      const toneMappedB = b / (b + 1);
+      // Basic tone mapping if values are high (HDR)
+      const toneMappedR = r > 1.0 ? r / (r + 1.0) : r;
+      const toneMappedG = g > 1.0 ? g / (g + 1.0) : g;
+      const toneMappedB = b > 1.0 ? b / (b + 1.0) : b;
 
-      const color = new THREE.Color(toneMappedR, toneMappedG, toneMappedB);
-      // Convert to sRGB for consistent HSL analysis
+      const color = new THREE.Color(
+        Math.max(0, Math.min(1, toneMappedR)),
+        Math.max(0, Math.min(1, toneMappedG)),
+        Math.max(0, Math.min(1, toneMappedB))
+      );
+      
+      // Convert to sRGB if the texture is linear (HDR usually is)
       color.convertLinearToSRGB();
       samples.push(color);
   }
@@ -100,6 +111,7 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
   const materialsRef = useRef<THREE.Material[]>([]);
   const controlsRef = useRef<OrbitControls | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const waterMeshRef = useRef<THREE.Mesh | null>(null);
   const sandTextureRef = useRef<THREE.Texture | null>(null);
   const skyTextureRef = useRef<THREE.DataTexture | null>(null);
   const envMapRef = useRef<THREE.Texture | null>(null);
@@ -123,9 +135,6 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
   const renderTargetA = useRef<THREE.WebGLRenderTarget | null>(null);
   const renderTargetB = useRef<THREE.WebGLRenderTarget | null>(null);
   
-  // --- POST-PROCESSING REFS ---
-  const composerRef = useRef<EffectComposer | null>(null);
-
   // Interaction Refs
   const raycaster = useRef(new THREE.Raycaster());
   const mouse = useRef(new THREE.Vector2());
@@ -187,9 +196,13 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
             if (!clockRef.current) return;
             const x = (Math.random() - 0.5) * 150;
             const z = (Math.random() - 0.5) * 150;
+            const u = (x + 2000) / 4000;
+            const v = (-z + 2000) / 4000;
             const newImpact: Impact = {
                 x,
                 z,
+                u,
+                v,
                 strength: configRef.current.impactStrength,
                 startTime: clockRef.current.getElapsedTime(),
             };
@@ -197,19 +210,6 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
             textureImpactsToProcessRef.current.push(newImpact);
         };
     }
-
-    // --- POST-PROCESSING SETUP ---
-    const target = new THREE.WebGLRenderTarget(width, height, {
-      minFilter: THREE.LinearFilter,
-      magFilter: THREE.LinearFilter,
-      format: THREE.RGBAFormat,
-      stencilBuffer: false
-    });
-
-    const composer = new EffectComposer(renderer, target);
-    composer.setSize(width, height);
-    composerRef.current = composer;
-    composer.addPass(new RenderPass(scene, camera));
 
     // --- GOD RAYS SETUP ---
     const rayGeo = new THREE.ConeGeometry(20, 150, 16, 1, true); 
@@ -289,7 +289,7 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
     simScene.add(new THREE.Mesh(simGeometry, simMaterial));
 
     // --- 1. SEABED ---
-    const bedGeo = new THREE.PlaneGeometry(4000, 4000, 128, 128);
+    const bedGeo = new THREE.PlaneGeometry(4000, 4000, 64, 64);
     // Note: We rotate the MESH, not the geometry, so the vertex shader can use local XY for noise generation
     const bedMat = new THREE.ShaderMaterial({
         vertexShader: terrainVertexShader,
@@ -318,7 +318,7 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
     scene.add(seabed);
 
     // --- 2. WATER SURFACE ---
-    const waterGeo = new THREE.PlaneGeometry(4000, 4000, 128, 128);
+    const waterGeo = new THREE.PlaneGeometry(4000, 4000, 64, 64);
     waterGeo.rotateX(-Math.PI / 2);
 
     const textureLoader = new THREE.TextureLoader();
@@ -433,6 +433,7 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
     });
     materialsRef.current.push(waterMat);
     const water = new THREE.Mesh(waterGeo, waterMat);
+    waterMeshRef.current = water;
     scene.add(water);
     
     const animate = () => {
@@ -442,10 +443,9 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
         const renderer = rendererRef.current;
         const scene = sceneRef.current;
         const camera = cameraRef.current;
-        const composer = composerRef.current;
         const simMat = simMaterialRef.current;
 
-        if (!renderer || !scene || !camera || !composer || !simMat) {
+        if (!renderer || !scene || !camera || !simMat) {
             frameIdRef.current = requestAnimationFrame(animate);
             return;
         }
@@ -460,8 +460,8 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
             if (currentConfig.useTextureImpacts && textureImpactsToProcessRef.current.length > 0) {
                 const impacts = textureImpactsToProcessRef.current.slice(0, MAX_IMPACTS);
                 const impactData = impacts.map(i => new THREE.Vector3(
-                    (i.x + 2000) / 4000,
-                    (-i.z + 2000) / 4000,
+                    i.u,
+                    i.v,
                     i.strength
                 ));
                 // --- FIX: Pad the array to match the shader's expected size ---
@@ -562,7 +562,10 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
         }
 
         controlsRef.current?.update();
-        composer.render();
+        
+        // Direct render instead of composer for better performance if no extra passes are used
+        renderer.render(scene, camera);
+        
         frameIdRef.current = requestAnimationFrame(animate);
     };
     animate();
@@ -572,7 +575,6 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
         const w = containerRef.current.clientWidth;
         const h = containerRef.current.clientHeight;
         rendererRef.current.setSize(w, h);
-        composerRef.current?.setSize(w, h);
         cameraRef.current.aspect = w / h;
         cameraRef.current.updateProjectionMatrix();
     };
@@ -580,7 +582,7 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
 
     // --- INTERACTION HANDLERS ---
     const updateMouse = (e: MouseEvent | PointerEvent) => {
-        if (!containerRef.current || !cameraRef.current) return;
+        if (!containerRef.current || !cameraRef.current || !waterMeshRef.current) return;
         const rect = containerRef.current.getBoundingClientRect();
         const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
         const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -588,20 +590,15 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
         mouse.current.set(x, y);
         raycaster.current.setFromCamera(mouse.current, cameraRef.current);
         
-        const target = new THREE.Vector3();
-        const intersection = raycaster.current.ray.intersectPlane(interactionPlane.current, target);
+        const intersects = raycaster.current.intersectObject(waterMeshRef.current);
         
-        if (intersection && simMaterialRef.current) {
-            // Plane is 4000x4000 centered at 0. UVs map 0..1
-            // Plane is rotated -90 X, so World Z maps to V
-            // World X: -2000..2000 -> U: 0..1
-            // World Z: 2000..-2000 -> V: 0..1 (Because V goes bottom-up in texture space, but 'up' is -Z here)
-            const u = (target.x + 2000) / 4000;
-            const vCorrected = ( -target.z + 2000 ) / 4000;
-
-            simMaterialRef.current.uniforms.uMouse.value.set(u, vCorrected);
-            simMaterialRef.current.uniforms.uMouseDown.value = true;
-            return true;
+        if (intersects.length > 0 && simMaterialRef.current) {
+            const uv = intersects[0].uv;
+            if (uv) {
+                simMaterialRef.current.uniforms.uMouse.value.set(uv.x, uv.y);
+                simMaterialRef.current.uniforms.uMouseDown.value = true;
+                return true;
+            }
         }
         return false;
     };
@@ -621,7 +618,7 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
     };
 
     const onPointerDown = (e: PointerEvent) => {
-        if (!containerRef.current || !cameraRef.current || !clockRef.current) return;
+        if (!containerRef.current || !cameraRef.current || !clockRef.current || !waterMeshRef.current) return;
         
         // Only trigger on primary pointer (e.g., left-click or first touch)
         // to avoid conflicts with orbit controls.
@@ -634,19 +631,24 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
         mouse.current.set(x, y);
         raycaster.current.setFromCamera(mouse.current, cameraRef.current);
         
-        const target = new THREE.Vector3();
-        const intersection = raycaster.current.ray.intersectPlane(interactionPlane.current, target);
+        const intersects = raycaster.current.intersectObject(waterMeshRef.current);
 
-        if (intersection) {
-             const newImpact: Impact = {
-                x: target.x,
-                z: target.z,
-                strength: configRef.current.impactStrength,
-                startTime: clockRef.current.getElapsedTime(),
-            };
-            // Push to both vertex and texture impact queues
-            discreteImpactsRef.current.push(newImpact);
-            textureImpactsToProcessRef.current.push(newImpact);
+        if (intersects.length > 0) {
+             const hit = intersects[0];
+             const uv = hit.uv;
+             if (uv) {
+                const newImpact: Impact = {
+                    x: hit.point.x,
+                    z: hit.point.z,
+                    u: uv.x,
+                    v: uv.y,
+                    strength: configRef.current.impactStrength,
+                    startTime: clockRef.current.getElapsedTime(),
+                };
+                // Push to both vertex and texture impact queues
+                discreteImpactsRef.current.push(newImpact);
+                textureImpactsToProcessRef.current.push(newImpact);
+             }
         }
     };
 
@@ -665,7 +667,6 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
         }
         renderTargetA.current?.dispose();
         renderTargetB.current?.dispose();
-        target.dispose();
         
         // Clean up textures and generators
         pmremGeneratorRef.current?.dispose();
@@ -715,10 +716,17 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
     
     loader.load(config.skyboxUrl, (texture) => {
         texture.mapping = THREE.EquirectangularReflectionMapping;
+        
+        if (envMapRef.current) envMapRef.current.dispose();
         const newEnvMap = pmremGenerator.fromEquirectangular(texture).texture;
         
         envMapRef.current = newEnvMap;
         skyTextureRef.current = texture;
+        
+        if (sceneRef.current) {
+            sceneRef.current.environment = newEnvMap;
+            sceneRef.current.background = newEnvMap;
+        }
         
         materialsRef.current.forEach(mat => {
             if (mat instanceof THREE.ShaderMaterial && mat.uniforms.tSky) mat.uniforms.tSky.value = texture;
@@ -738,6 +746,8 @@ const WaterScene: React.FC<WaterSceneProps> = ({ config, initialCameraState, sce
             sceneController.current.updateWaterConfigFromPalette(palette);
           }
         }
+    }, undefined, (err) => {
+        console.error('Error loading HDR:', err);
     });
   }, [config.skyboxUrl, sceneController]);
 
